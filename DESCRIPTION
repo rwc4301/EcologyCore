@@ -1,0 +1,11 @@
+Package: EcologyCore
+Type: Package
+Title: Ecology Scripts
+Version: 0.0.1
+Author: Reuben Duncan
+Maintainer: Reuben Duncan <reuben.duncan@cranfield.ac.uk>
+Description: A centralised package for standard ecological analyses.
+    Takes abundance, taxa, and metadata tables and a phylogenetic tree as inputs.
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
