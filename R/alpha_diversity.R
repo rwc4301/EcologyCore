@@ -1,6 +1,3 @@
-#ACHTUNG: From the RStudio menu, click on "Session" and then "Set Working Directory" to "To Source File Location"
-#Script for calculation of diversity indices, and also supports paired data
-
 library(phyloseq)
 library(stringr)
 library(data.table)
@@ -8,7 +5,8 @@ library(vegan)
 library(ggplot2)
 library(grid) #We need grid to draw the arrows
 
-#PARAMETERS ###########################
+#### Parameters ####
+
 which_level="Phylum" #Otus Genus Family Order Class Phylum
 text_size=16
 point_size=5
@@ -27,21 +25,22 @@ height_image=10
 width_image=25
 use_provided_colors=FALSE
 colours <- c("#ffa172", "#81fc76", "#68aeff","#c320d8","#2BCE48","#FFCC99","#808080","#94FFB5","#8F7C00","#9DCC00","#C20088","#003380","#FFA405","#FFA8BB","#426600","#FF0010","#5EF1F2","#00998F","#740AFF","#990000","#FFFF00",grey.colors(1000));
-#/PARAMETERS ###########################
 
+#### Data Import ####
 
+ret <- import("../../data/VSEARCH/feature_w_tax.biom", "../../data/meta_table.csv")
 
+abund_table <- ret[1]
+OTU_taxonomy <- ret[2]
+meta_table <- ret[3]
 
-
-#At this point we have abund_table, meta_table, and OTU_taxonomy are ready and their dimensions should match
-#/DATA IMPORT############################################################
-
-#PARAMETERS CHANGE THE GROUPING COLUMN AS YOU DESIRE############################
+#### Hypothesis ####
 #In the hypothesis space, all you need is to select the rows in meta_table you are interested in
 #and then allocate a column to meta_table$Groups that you want to use.
 #additionally, allocate a column to meta_table$Connections if the data is paired
 
 # Hypothesis 1
+grouping_column<-"Groups"
 label="Hypothesis1"
 meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
 meta_table$Groups<-as.factor(as.character(meta_table$Within_Dam_Sample))
@@ -50,10 +49,6 @@ meta_table$Type2<-as.character(meta_table$Sample_Time)
 meta_table$Type2<-factor(meta_table$Type2,levels=c("May","July"))
 meta_table$Connections<-NULL
 
-
-
-#PARAMETERS CHANGE THE GROUPING COLUMN AS YOU DESIRE############################
-
 #Adjust abund_table to contain only those rows that got selected in the Hypothesis space
 abund_table<-abund_table[rownames(meta_table),]
 #After adjustment, get rid of OTUs that are all empty
@@ -61,25 +56,11 @@ abund_table<-abund_table[,colSums(abund_table)>0]
 #Adjust OTU taxonomy
 OTU_taxonomy<-OTU_taxonomy[colnames(abund_table),]
 
-#COLLATE OTUS AT A PARTICULAR LEVEL#######################################
-new_abund_table<-NULL
-if(which_level=="Otus"){
-  new_abund_table<-abund_table
-} else {
-  list<-unique(OTU_taxonomy[,which_level])
-  new_abund_table<-NULL
-  for(i in list){
-    tmp<-data.frame(rowSums(abund_table[,rownames(OTU_taxonomy)[OTU_taxonomy[,which_level]==i]]))
-    if(i==""){colnames(tmp)<-c("__Unknowns__")} else {colnames(tmp)<-paste("",i,sep="")}
-    if(is.null(new_abund_table)){new_abund_table<-tmp} else {new_abund_table<-cbind(tmp,new_abund_table)}
-  }
-}
+##### Collate Taxonomy ####
 
-new_abund_table<-as.data.frame(as(new_abund_table,"matrix"))
-abund_table<-new_abund_table
-#/COLLATE OTUS AT A PARTICULAR LEVEL#######################################
+abund_table <- collate_taxonomy(abund_table, OTU_taxonomy, which_level)
 
-grouping_column<-"Groups"
+#### Analysis ####
 
 #Calculate Richness
 R<-vegan::rarefy(abund_table,min(rowSums(abund_table)))
@@ -125,8 +106,8 @@ dt<-data.table(data.frame(df,.group.=df[,grouping_column]))
 
 #I am also specifying a p-value cutoff for the ggplot2 strips
 pValueCutoff<-0.05
-pval<-dt[, list(pvalue = sprintf("%.2g", 
-                                 tryCatch(summary(aov(value ~ .group.))[[1]][["Pr(>F)"]][1],error=function(e) NULL))), 
+pval<-dt[, list(pvalue = sprintf("%.2g",
+                                 tryCatch(summary(aov(value ~ .group.))[[1]][["Pr(>F)"]][1],error=function(e) NULL))),
          by=list(measure)]
 
 #Filter out pvals that we don't want
@@ -156,37 +137,37 @@ for(k in unique(as.character(df$measure))){
   #We need to calculate the coordinate to draw pair-wise significance lines
   #for this we calculate bas as the maximum value
   bas<-max(df[(df$measure==k),"value"])
-  
+
   #Calculate increments as % of the maximum values
   inc<-0.05*(bas-min(df[(df$measure==k),"value"]))
-  
+
   #Give an initial increment
   bas<-bas+inc
   for(l in 1:dim(s)[2]){
-    
+
     tmp<-NULL
     #If it is paired-data we are interested in
     if(is.null(meta_table$Connections)){
-      #Do a normal anova 
+      #Do a normal anova
       tmp<-c(k,s[1,l],s[2,l],bas,paste(sprintf("%.2g",tryCatch(summary(aov(as.formula(paste("value ~",grouping_column)),data=df[(df$measure==k) & (df[,grouping_column]==s[1,l] | df[,grouping_column]==s[2,l]),] ))[[1]][["Pr(>F)"]][1],error=function(e) NULL)),"",sep=""))
     } else {
-      #Do a paired anova with Error(Connections/Groups) 
+      #Do a paired anova with Error(Connections/Groups)
       tmp<-c(k,s[1,l],s[2,l],bas,paste(sprintf("%.2g",tryCatch(summary(aov(as.formula(paste("value ~",grouping_column,"+",paste("Error(","Connections/",grouping_column,")",sep=""))),data=df[(df$measure==k) & (df[,grouping_column]==s[1,l] | df[,grouping_column]==s[2,l]),] ))[[1]][[1]][["Pr(>F)"]][1],error=function(e) NULL)),"",sep=""))
     }
-    
-  
+
+
     #Ignore if anova fails
     if(!is.na(as.numeric(tmp[length(tmp)]))){
-      
+
       #Only retain those pairs where the p-values are significant
       if(as.numeric(tmp[length(tmp)])<0.05){
         if(is.null(df_pw)){df_pw<-tmp}else{df_pw<-rbind(df_pw,tmp)}
-        
+
         #Generate the next position
         bas<-bas+inc
       }
     }
-  }  
+  }
 }
 
 if(!is.null(df_pw)){
@@ -197,8 +178,8 @@ if(!is.null(df_pw)){
   names(df_pw)<-c("measure","from","to","y","p")
 }
 
+#### Plotting Function ####
 
-#Draw the boxplots
 p<-NULL
 if(!"Type" %in% colnames(meta_table)){
     if(!"Type2" %in% colnames(meta_table)){
@@ -246,6 +227,8 @@ if(legends_position_bottom){
 if(exclude_legends){
   p<-p+guides(colour=FALSE)
 }
+
+#### Write Data Out ####
 
 pdf(paste("ANOVA_diversity_",which_level,"_",label,".pdf",sep=""),height=height_image,width=width_image)
 print(p)

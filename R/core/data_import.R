@@ -1,6 +1,6 @@
-import <- function() {
-  physeq <- phyloseq::import_biom("../../data/VSEARCH/feature_w_tax.biom")
-  meta_table <- read.csv("../../data/meta_table.csv", header = TRUE, row.names = 1)
+import <- function(physeq_path, meta_path) {
+  physeq <- phyloseq::import_biom(physeq_path)
+  meta_table <- read.csv(meta_path, header = TRUE, row.names = 1)
 
   abund_table <- otu_table(physeq)
   abund_table <- t(abund_table)
@@ -38,5 +38,6 @@ import <- function() {
   #make OTU_taxonomy smaller by only considering OTUs that appear in abund_table
   OTU_taxonomy<-OTU_taxonomy[colnames(abund_table),]
 
-  return physeq
+  #At this point we have abund_table, meta_table, and OTU_taxonomy are ready and their dimensions should match
+  return(list(abund_table, OTU_taxonomy, meta_table))
 }
