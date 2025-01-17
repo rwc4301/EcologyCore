@@ -1,13 +1,13 @@
-import <- function(physeq_path, meta_path) {
+import_data <- function(physeq_path, meta_path) {
   physeq <- phyloseq::import_biom(physeq_path)
   meta_table <- read.csv(meta_path, header = TRUE, row.names = 1)
 
-  abund_table <- otu_table(physeq)
+  abund_table <- phyloseq::otu_table(physeq)
   abund_table <- t(abund_table)
 
   #Uncomment if you'd like to get rid of samples below a certain library size
   abund_table<-abund_table[rowSums(abund_table)>=5000,]
-  OTU_taxonomy<-as.data.frame(tax_table(physeq))
+  OTU_taxonomy<-as.data.frame(phyloseq::tax_table(physeq))
   colnames(OTU_taxonomy)<-c("Kingdom","Phylum","Class","Order","Family","Genus","Otus")
 
   #Ensure that all columns of OTU_taxonomy are character and not factors
