@@ -1,9 +1,14 @@
-import_data <- function(physeq_path, meta_path) {
+import_data <- function(physeq_path, meta_path, tree_path = NULL) {
   physeq <- phyloseq::import_biom(physeq_path)
   meta_table <- read.csv(meta_path, header = TRUE, row.names = 1)
 
   abund_table <- phyloseq::otu_table(physeq)
   abund_table <- t(abund_table)
+
+  OTU_tree <- NULL
+  if (!is.null(tree_path)) {
+    OTU_tree <- ape::read.tree(tree_path)
+  }
 
   #Uncomment if you'd like to get rid of samples below a certain library size
   abund_table<-abund_table[rowSums(abund_table)>=5000,]
@@ -39,5 +44,5 @@ import_data <- function(physeq_path, meta_path) {
   OTU_taxonomy<-OTU_taxonomy[colnames(abund_table),]
 
   #At this point we have abund_table, meta_table, and OTU_taxonomy are ready and their dimensions should match
-  return(list(abund_table, OTU_taxonomy, meta_table))
+  return(list(abund_table, OTU_taxonomy, meta_table, OTU_tree))
 }
