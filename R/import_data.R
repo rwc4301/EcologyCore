@@ -1,13 +1,21 @@
-import_data <- function(physeq_path, meta_path, tree_path = NULL) {
+import_data <- function(physeq_path, meta_path, tree_path = NULL, round_abund = FALSE) {
   physeq <- phyloseq::import_biom(physeq_path)
   meta_table <- read.csv(meta_path, header = TRUE, row.names = 1)
 
   abund_table <- phyloseq::otu_table(physeq)
   abund_table <- t(abund_table)
 
+  # Some cases where you want to round up abundances, e.g. for picrust pathways
+  if (round_abund) {
+    abund_table<-round(abund_table)
+  }
+
   OTU_tree <- NULL
   if (!is.null(tree_path)) {
     OTU_tree <- ape::read.tree(tree_path)
+
+    # Recent version of R puts apostrophe in the OTU tip labels so we will just remove them if that exist
+    OTU_tree$tip.label<-gsub("'","",OTU_tree$tip.label)
   }
 
   #Uncomment if you'd like to get rid of samples below a certain library size

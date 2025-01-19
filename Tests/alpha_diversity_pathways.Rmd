@@ -1,0 +1,142 @@
+---
+title: "Alpha Diversity"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+knitr::opts_chunk$set(echo = TRUE)
+
+# For testing
+devtools::load_all("..")
+
+# For production
+# library(EcologyCore)
+```
+
+```{r params, include=FALSE}
+#### Parameters ####
+
+biom_path="/Users/reuben/Dropbox/Cindy_Alison_Umer_SandDam/data/DADA2/feature_w_tax.biom"
+meta_path="/Users/reuben/Dropbox/Cindy_Alison_Umer_SandDam/data/meta_table.csv"
+grouping_column<-"Groups"
+
+which_level="Phylum" #Otus Genus Family Order Class Phylum
+text_size=16
+point_size=5
+point_opacity=0.8
+axis_text_size=12
+strip_text_size=16
+increment_divider=2
+exclude_pvalues_text_from_drawing=FALSE
+legends_position_bottom=TRUE
+exclude_legends=TRUE
+pairwise_text_size=7
+number_of_rows=1
+legend_text_size=12
+axis_title_size=16
+height_image=10
+width_image=25
+use_provided_colors=FALSE
+colours <- c("#ffa172", "#81fc76", "#68aeff","#c320d8","#2BCE48","#FFCC99","#808080","#94FFB5","#8F7C00","#9DCC00","#C20088","#003380","#FFA405","#FFA8BB","#426600","#FF0010","#5EF1F2","#00998F","#740AFF","#990000","#FFFF00",grey.colors(1000));
+```
+
+## Alpha Diversity
+
+This notebook uses the EcologyCore API to generate alpha diversity plots from a .biom file.
+
+```{r data, include=FALSE}
+#### Data Import ####
+
+# For pathways we need to round up the abundance table first
+result <- import_data(biom_path, meta_path, round_abund = TRUE)
+
+abund_table <- result[[1]]
+OTU_taxonomy <- result[[2]]
+meta_table <- result[[3]]
+
+rm(result)
+```
+
+## Setting up Hypotheses
+
+The hypothesis space sets up comparison groups for the analysis.
+
+All you need to do is select the metadata columns you are interested in comparing and the code groups samples by the values in these columns.
+
+Additionally, you can allocate a column to Connections if the data is paired.
+
+```{r hypothesis, include=FALSE}
+#### Hypothesis ####
+
+# Hypothesis 1
+label="Hypothesis1"
+meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
+meta_table$Groups<-as.factor(as.character(meta_table$Within_Dam_Sample))
+meta_table$Type<-as.factor(as.character(meta_table$Sand_Dam))
+meta_table$Type2<-as.character(meta_table$Sample_Time)
+meta_table$Type2<-factor(meta_table$Type2,levels=c("May","July"))
+meta_table$Connections<-NULL
+
+#Adjust abund_table to contain only those rows that got selected in the Hypothesis space
+abund_table<-abund_table[rownames(meta_table),]
+#After adjustment, get rid of OTUs that are all empty
+abund_table<-abund_table[,colSums(abund_table)>0]
+#Adjust OTU taxonomy
+OTU_taxonomy<-OTU_taxonomy[colnames(abund_table),]
+```
+
+## Collate Taxonomy
+
+This function is included in every analysis and serves to coalesce values in the abundance table at whatever taxonomic rank you specify.
+
+```{r collate, include=FALSE}
+#### Collate Taxonomy ####
+
+abund_table <- collate_taxonomy(abund_table, OTU_taxonomy, which_level)
+```
+
+## Running the Analysis
+
+Every analysis in EcologyCore is run by calling a single function. In this case, the function is called `alpha_diversity`.
+
+```{r analyse, include=FALSE}
+#### Analysis ####
+
+dt <- alpha_diversity(abund_table, meta_table, grouping_column)
+
+# Some absolutely fucking insufferable bug causes this to fail if its run in a package
+# so fuck it I'm sticking it here instead
+pval<-data.table::as.data.table(dt)[, list(pvalue = sprintf("%.2g", tryCatch({
+   summary(stats::aov(value ~ .SD$.group.))[[1]][["Pr(>F)"]][1]
+  }, error = function(e) NULL))),
+  by = list(measure)
+]
+  
+result <- alpha_diversity_2(dt, pval, meta_table, grouping_column)
+
+df <- result[[1]]
+df_pw <- result[[2]]
+
+rm(result)
+```
+
+## Including Plots
+
+Once the analysis is complete, a separate function call draws the plots, and these are rendered here in the notebook.
+
+```{r plot, echo=FALSE}
+plot_alpha_diversity(df, df_pw)
+```
+
+## Saving Data
+
+It is good practice to save the data produced by the analyses in a non-destructive way. This means that someone coming back to the analysis after some time can see the output of each step, for validation and reproducibility. This also saves one running the entire analysis again in order to redraw a plot or change one final piece. This becomes particularly useful for large, complex analyses that may take hours or even days to complete.
+
+By default, we save a workspace image containing the output of each analysis step in an RData file. This provides an easy way for the user to open the data created by this software and analyse it further, independently. For users that don't use R, or that want a more portable format, we provide an option to export data in CSV format.
+
+```{r save, include=FALSE}
+
+```

@@ -6,7 +6,7 @@
 # library(stringr)
 # library(grid)
 
-beta_diversity <- function(abund_table, meta_table, grouping_column) {
+beta_diversity_analysis <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree, grouping_column) {
   #Convert the data to phyloseq format
   OTU = otu_table(as.matrix(abund_table), taxa_are_rows = FALSE)
   TAX = tax_table(as.matrix(OTU_taxonomy))
@@ -141,80 +141,89 @@ beta_diversity <- function(abund_table, meta_table, grouping_column) {
     }
     #/#Connecting samples based on lines with meta_table$Connections and meta_table$Subconnections ###########
 
-
-    cols=gg_color_hue(length(unique(PCOA$Groups)))
-
-    p<-ggplot(data=PCOA,aes(x,y,colour=Groups))
-    if(!"Type" %in% colnames(meta_table)){
-      p<-p + geom_point(aes(PCOA$x,PCOA$y,colour=PCOA$Groups),inherit.aes=F,alpha=point_opacity,size=point_size)
-    } else{
-      p<-p + geom_point(aes(PCOA$x,PCOA$y,colour=PCOA$Groups, shape=PCOA$Type),inherit.aes=F,alpha=point_opacity,size=point_size)
-      p<-p+scale_shape("Type")
-    }
-
-    if(draw_glow){
-      p<-p + geom_point(alpha=point_glow_opacity,size = point_size+point_glow_differential,show.legend=FALSE)
-    }
-
-    p<-p+theme_bw()
-    if(draw_mean_values_text){
-      p<-p+ annotate("text",x=PCOA.mean$x,y=PCOA.mean$y,label=PCOA.mean$group,size=mean_values_text_size,colour=cols,alpha=mean_values_text_opacity,vjust=0.3)
-    }
-    if (sum(dim(df_ell))>0){
-    if(draw_confidence_intervals){
-      if(identical(levels(meta_table$Groups), levels(meta_table$Type2))){
-        if(draw_ellipses_and_not_polygons){
-          p<-p+ geom_path(data=df_ell, aes(x=x, y=y), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
-        } else {
-          p<-p+ geom_polygon(data=df_ell, aes(x=x, y=y,fill=Groups), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
-        }
-      } else {
-        for (q in unique(as.numeric(meta_table$Groups))){
-          for(r in unique(as.numeric(meta_table$Type2))){
-            if(draw_ellipses_and_not_polygons){
-              p<-p+ geom_path(data=df_ell[as.numeric(df_ell$Groups)==q & as.numeric(df_ell$Type2)==r,], aes(x=x, y=y), size=linesize_ellipses_polygons, colour=cols[q],linetype=r,alpha=opacity_ellipses_polygons, show.legend = FALSE)
-            } else {
-              p<-p+ geom_polygon(data=df_ell[as.numeric(df_ell$Groups)==q & as.numeric(df_ell$Type2)==r,], aes(x=x, y=y,fill=Groups), size=linesize_ellipses_polygons, colour=cols[q],linetype=r,alpha=opacity_ellipses_polygons, show.legend = FALSE)
-            }
-            }
-        }
-      }
-    }
-    }
-    if(exclude_legends){
-      p<-p+guides(colour=FALSE)
-    }
-
-    #only draw lines connecting dots if the lines are available
-    if(!is.null(PCOA_lines)){
-      arrow<-NULL
-      if(should_connections_end_in_arrows){
-        arrow=arrow(length=unit(0.2,"inches"))
-      }
-      p<-p+geom_segment(data=PCOA_lines,inherit.aes=FALSE,aes(x=xfrom,y=yfrom,xend=xto,yend=yto),colour="grey20",size=linking_samples_line_size,alpha=linking_samples_line_opacity,linetype=linking_samples_linetype, show.legend = FALSE,arrow=arrow)
-    }
-
-
-    p<-p+xlab(paste("Dim1 (",sprintf("%.4g",(sol$eig[1]/sum(sol$eig))*100),"%)",sep=""))+ylab(paste("Dim2 (",sprintf("%.4g",(sol$eig[2]/sum(sol$eig))*100),"%)",sep=""))
-
-    p<-p+theme(legend.title=element_text(size=legend_title_size),
-               legend.text=element_text(size=legend_text_size),
-               text = element_text(size=text_size),
-               axis.text=element_text(size=axis_text_size),
-               axis.title=element_text(size=axis_title_size))
-
-
-    if(use_provided_colors){
-      p<-p+scale_color_manual("Groups",values=colours)
-      p<-p+scale_fill_manual("Groups",values=colours)
-    }
-
-
-     pdf(paste("PCOA_",which_distance,"_",which_level,"_",label,".pdf",sep=""),width=width_image,height=height_image)
-    print(p)
-    dev.off()
-
-    dist<-phyloseq::distance(physeq,which_distance)
-    capture.output(adonis(as.formula(paste("dist ~",paste(PERMANOVA_variables,collapse="+"))), data=meta_table[rownames(otu_table(physeq)),]),file=paste("ADONIS_",which_distance,"_",which_level,"_",label,".txt",sep=""))
+    return(PCOA)
   }
+
+  return(NULL)
+}
+
+beta_diversity_plot <- function(PCOA) {
+  cols=gg_color_hue(length(unique(PCOA$Groups)))
+
+  p<-ggplot(data=PCOA,aes(x,y,colour=Groups))
+  if(!"Type" %in% colnames(meta_table)){
+    p<-p + geom_point(aes(PCOA$x,PCOA$y,colour=PCOA$Groups),inherit.aes=F,alpha=point_opacity,size=point_size)
+  } else{
+    p<-p + geom_point(aes(PCOA$x,PCOA$y,colour=PCOA$Groups, shape=PCOA$Type),inherit.aes=F,alpha=point_opacity,size=point_size)
+    p<-p+scale_shape("Type")
+  }
+
+  if(draw_glow){
+    p<-p + geom_point(alpha=point_glow_opacity,size = point_size+point_glow_differential,show.legend=FALSE)
+  }
+
+  p<-p+theme_bw()
+  if(draw_mean_values_text){
+    p<-p+ annotate("text",x=PCOA.mean$x,y=PCOA.mean$y,label=PCOA.mean$group,size=mean_values_text_size,colour=cols,alpha=mean_values_text_opacity,vjust=0.3)
+  }
+  if (sum(dim(df_ell))>0){
+  if(draw_confidence_intervals){
+    if(identical(levels(meta_table$Groups), levels(meta_table$Type2))){
+      if(draw_ellipses_and_not_polygons){
+        p<-p+ geom_path(data=df_ell, aes(x=x, y=y), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
+      } else {
+        p<-p+ geom_polygon(data=df_ell, aes(x=x, y=y,fill=Groups), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
+      }
+    } else {
+      for (q in unique(as.numeric(meta_table$Groups))){
+        for(r in unique(as.numeric(meta_table$Type2))){
+          if(draw_ellipses_and_not_polygons){
+            p<-p+ geom_path(data=df_ell[as.numeric(df_ell$Groups)==q & as.numeric(df_ell$Type2)==r,], aes(x=x, y=y), size=linesize_ellipses_polygons, colour=cols[q],linetype=r,alpha=opacity_ellipses_polygons, show.legend = FALSE)
+          } else {
+            p<-p+ geom_polygon(data=df_ell[as.numeric(df_ell$Groups)==q & as.numeric(df_ell$Type2)==r,], aes(x=x, y=y,fill=Groups), size=linesize_ellipses_polygons, colour=cols[q],linetype=r,alpha=opacity_ellipses_polygons, show.legend = FALSE)
+          }
+          }
+      }
+    }
+  }
+  }
+  if(exclude_legends){
+    p<-p+guides(colour=FALSE)
+  }
+
+  #only draw lines connecting dots if the lines are available
+  if(!is.null(PCOA_lines)){
+    arrow<-NULL
+    if(should_connections_end_in_arrows){
+      arrow=arrow(length=unit(0.2,"inches"))
+    }
+    p<-p+geom_segment(data=PCOA_lines,inherit.aes=FALSE,aes(x=xfrom,y=yfrom,xend=xto,yend=yto),colour="grey20",size=linking_samples_line_size,alpha=linking_samples_line_opacity,linetype=linking_samples_linetype, show.legend = FALSE,arrow=arrow)
+  }
+
+
+  p<-p+xlab(paste("Dim1 (",sprintf("%.4g",(sol$eig[1]/sum(sol$eig))*100),"%)",sep=""))+ylab(paste("Dim2 (",sprintf("%.4g",(sol$eig[2]/sum(sol$eig))*100),"%)",sep=""))
+
+  p<-p+theme(legend.title=element_text(size=legend_title_size),
+             legend.text=element_text(size=legend_text_size),
+             text = element_text(size=text_size),
+             axis.text=element_text(size=axis_text_size),
+             axis.title=element_text(size=axis_title_size))
+
+
+  if(use_provided_colors){
+    p<-p+scale_color_manual("Groups",values=colours)
+    p<-p+scale_fill_manual("Groups",values=colours)
+  }
+
+
+  pdf(paste("PCOA_",which_distance,"_",which_level,"_",label,".pdf",sep=""),width=width_image,height=height_image)
+  print(p)
+  dev.off()
+
+  dist<-phyloseq::distance(physeq,which_distance)
+  capture.output(adonis(as.formula(paste("dist ~",paste(PERMANOVA_variables,collapse="+"))), data=meta_table[rownames(otu_table(physeq)),]),file=paste("ADONIS_",which_distance,"_",which_level,"_",label,".txt",sep=""))
+}
+
+beta_diversity_write <- function() {
+  # TBD
 }

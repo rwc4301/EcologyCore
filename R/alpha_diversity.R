@@ -5,6 +5,8 @@
 # library(ggplot2)
 # library(grid) #We need grid to draw the arrows
 
+## Also works for picrust data - need to round abund_table
+
 alpha_diversity <- function(abund_table, meta_table, grouping_column) {
   #Calculate Richness
   R<-vegan::rarefy(abund_table,min(rowSums(abund_table)))
