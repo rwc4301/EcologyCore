@@ -1,6 +1,18 @@
 import_data <- function(physeq_path, meta_path, tree_path = NULL, round_abund = FALSE) {
-  physeq <- phyloseq::import_biom(physeq_path)
+  # Wrap everything in the physeq class and return
+  physeq <- NULL
+  if (!is.null(tree_path)) {
+    physeq <- phyloseq::import_biom(physeq_path, treefilename = tree_path)
+    OTU_tree <- phyloseq::phy_tree(physeq)
+
+    # Recent version of R puts apostrophe in the OTU tip labels so we will just remove them if that exist
+    OTU_tree$tip.label<-gsub("'","",OTU_tree$tip.label)
+  } else {
+    physeq <- phyloseq::import_biom(physeq_path)
+  }
   meta_table <- read.csv(meta_path, header = TRUE, row.names = 1)
+
+  phyloseq::sample_data(physeq) <- meta_table
 
   abund_table <- phyloseq::otu_table(physeq)
   abund_table <- t(abund_table)
