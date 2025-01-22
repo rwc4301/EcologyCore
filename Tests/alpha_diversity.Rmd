@@ -50,13 +50,13 @@ This notebook uses the EcologyCore API to generate alpha diversity plots from a 
 ```{r data, include=FALSE}
 #### Data Import ####
 
-result <- import_data(biom_path, meta_path)
+physeq <- import_data(biom_path, meta_path)
 
-abund_table <- result[[1]]
-OTU_taxonomy <- result[[2]]
-meta_table <- result[[3]]
+abund_table <- phyloseq::otu_table(physeq)
+OTU_taxonomy <- phyloseq::tax_table(physeq)
+meta_table <- phyloseq::sample_data(physeq)
 
-rm(result)
+# rm(result)
 ```
 
 ## Setting up Hypotheses

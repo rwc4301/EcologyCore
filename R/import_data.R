@@ -64,5 +64,6 @@ import_data <- function(physeq_path, meta_path, tree_path = NULL, round_abund = 
   OTU_taxonomy<-OTU_taxonomy[colnames(abund_table),]
 
   #At this point we have abund_table, meta_table, and OTU_taxonomy are ready and their dimensions should match
-  return(list(abund_table, OTU_taxonomy, meta_table, OTU_tree))
+  #return(list(abund_table, OTU_taxonomy, meta_table, OTU_tree))
+  return(physeq)
 }

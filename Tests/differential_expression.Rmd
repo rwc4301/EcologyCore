@@ -208,9 +208,30 @@ This function is included in every analysis and serves to coalesce values in the
 abund_table <- collate_taxonomy(abund_table, OTU_taxonomy, which_level)
 ```
 
-## Running the Analysis
+## Model Selection
 
-Every analysis in EcologyCore is run by calling a single function. In this case, the function is called `alpha_diversity`.
+There are a wide variety of models available for analysing differential expression.
+
+Bulk RNA-Seq:
+- DESeq2
+- edgeR
+- limma-voom
+
+No replicates:
+- NOISeq
+- DEGseq
+
+Single-Cell RNA-Seq:
+- MAST
+- Seurat
+- Monocle3
+-glmGamPoi
+
+Bayesian Approaches:
+- EBSeq
+- baySeq
+- BPSC
+- ABSSeq
 
 ```{r analyse, include=FALSE}
 #### Analysis ####
