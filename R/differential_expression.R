@@ -8,7 +8,16 @@
 # library(DESeq2)
 # library(stringr)
 
-differential_expression_analysis <- function() {
+differential_expression_analysis <- function(physeq) {
+  # TODO: remove
+  grouping_column <- "Groups"
+
+  # Process input data
+  abund_table <- phyloseq::otu_table(physeq)
+  meta_table <- phyloseq::sample_data(physeq)
+  OTU_taxonomy <- phyloseq::tax_table(physeq)
+  OTU_tree <- phyloseq::phy_tree(physeq)
+
   #We will convert our table to DESeqDataSet object
   countData = round(as(abund_table, "matrix"), digits = 0)
   # We will add 1 to the countData otherwise DESeq will fail with the error:

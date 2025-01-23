@@ -10,7 +10,16 @@
 # library(ggplot2)
 # library(grid) #We need grid to draw the arrows
 
-environmental_filtering_analysis <- function() {
+environmental_filtering_analysis <- function(physeq) {
+  # TODO: remove
+  grouping_column <- "Groups"
+
+  # Process input data
+  abund_table <- phyloseq::otu_table(physeq)
+  meta_table <- phyloseq::sample_data(physeq)
+  OTU_taxonomy <- phyloseq::tax_table(physeq)
+  OTU_tree <- phyloseq::phy_tree(physeq)
+
   #We extract N most abundant OTUs
   abund_table<-abund_table[,order(colSums(abund_table),decreasing=TRUE)][,1:min(Top_N_abundant_OTUs,dim(abund_table)[2])]
 

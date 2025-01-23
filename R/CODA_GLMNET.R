@@ -15,7 +15,16 @@ occ_threshold<-function (m, threshold, max_absent = 0)
   return(m[, goodspecies])
 }
 
-coda_glmnet_analysis <- function() {
+coda_glmnet_analysis <- function(physeq) {
+  # TODO: remove
+  grouping_column <- "Groups"
+
+  # Process input data
+  abund_table <- phyloseq::otu_table(physeq)
+  meta_table <- phyloseq::sample_data(physeq)
+  OTU_taxonomy <- phyloseq::tax_table(physeq)
+  OTU_tree <- phyloseq::phy_tree(physeq)
+
   #First apply occupancy threshold to remove low-occupancy taxa
   abund_table<-occ_threshold(abund_table,occupancy_threshold)
 

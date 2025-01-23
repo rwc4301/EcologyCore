@@ -7,7 +7,16 @@
 
 ## Also works for picrust data - need to round abund_table
 
-alpha_diversity <- function(abund_table, meta_table, grouping_column) {
+alpha_diversity <- function(physeq) {
+  # TODO: remove
+  grouping_column <- "Groups"
+
+  # Process input data
+  abund_table <- phyloseq::otu_table(physeq)
+  meta_table <- phyloseq::sample_data(physeq)
+  OTU_taxonomy <- phyloseq::tax_table(physeq)
+  OTU_tree <- phyloseq::phy_tree(physeq)
+
   #Calculate Richness
   R<-vegan::rarefy(abund_table,min(rowSums(abund_table)))
   df_R<-data.frame(sample=names(R),value=R,measure=rep("Richness",length(R)))

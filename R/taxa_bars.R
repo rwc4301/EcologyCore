@@ -7,7 +7,16 @@
 # library(ape)
 # library(grid)
 
-taxa_bars_analysis <- function(abund_table, meta_table) {
+taxa_bars_analysis <- function(physeq) {
+  # TODO: remove
+  grouping_column <- "Groups"
+
+  # Process input data
+  abund_table <- phyloseq::otu_table(physeq)
+  meta_table <- phyloseq::sample_data(physeq)
+  OTU_taxonomy <- phyloseq::tax_table(physeq)
+  OTU_tree <- phyloseq::phy_tree(physeq)
+
   #Apply proportion normalisation
   x<-abund_table/rowSums(abund_table)
   x<-x[,order(colSums(x),decreasing=TRUE)]

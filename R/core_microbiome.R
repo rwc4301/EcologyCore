@@ -10,7 +10,16 @@
 # library(RColorBrewer)
 # library(cowplot)
 
-core_microbiome <- function(abund_table, meta_table) {
+core_microbiome <- function(physeq) {
+  # TODO: remove
+  grouping_column <- "Groups"
+
+  # Process input data
+  abund_table <- phyloseq::otu_table(physeq)
+  meta_table <- phyloseq::sample_data(physeq)
+  OTU_taxonomy <- phyloseq::tax_table(physeq)
+  OTU_tree <- phyloseq::phy_tree(physeq)
+
   #Convert the data to phyloseq format
   OTU = otu_table(as.matrix(abund_table), taxa_are_rows = FALSE)
   TAX = tax_table(as.matrix(OTU_taxonomy))

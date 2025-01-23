@@ -7,7 +7,16 @@
 # library(ape)
 # library(phangorn)
 
-beta_dispersion_analysis <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree, grouping_column) {
+beta_dispersion_analysis <- function(physeq) {
+  # TODO: remove
+  grouping_column <- "Groups"
+
+  # Process input data
+  abund_table <- phyloseq::otu_table(physeq)
+  meta_table <- phyloseq::sample_data(physeq)
+  OTU_taxonomy <- phyloseq::tax_table(physeq)
+  OTU_tree <- phyloseq::phy_tree(physeq)
+
   #Convert the data to phyloseq format
   OTU = otu_table(as.matrix(abund_table), taxa_are_rows = FALSE)
   TAX = tax_table(as.matrix(OTU_taxonomy))

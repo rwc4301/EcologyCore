@@ -9,7 +9,16 @@
 # library(NST)
 # library(ggplot2)
 
-nst <- function() {
+nst <- function(physeq) {
+  # TODO: remove
+  grouping_column <- "Groups"
+
+  # Process input data
+  abund_table <- phyloseq::otu_table(physeq)
+  meta_table <- phyloseq::sample_data(physeq)
+  OTU_taxonomy <- phyloseq::tax_table(physeq)
+  OTU_tree <- phyloseq::phy_tree(physeq)
+
   #Bug in tNST (abund_table should be of type "matrix")
   abund_table<-as(abund_table,"matrix")
 
