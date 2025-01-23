@@ -57,8 +57,6 @@ text_size=30
 axis_text_size=30
 height_image=15
 width_image=15
-use_provided_colors=FALSE
-colours <- c("#ffa172", "#81fc76", "#68aeff","#c320d8","#2BCE48","#FFCC99","#808080","#94FFB5","#8F7C00","#9DCC00","#C20088","#003380","#FFA405","#FFA8BB","#426600","#FF0010","#5EF1F2","#00998F","#740AFF","#990000","#FFFF00",grey.colors(1000));
 
 
 ```
@@ -136,10 +134,16 @@ abund_table <- collate_taxonomy(abund_table, OTU_taxonomy, which_level)
 
 Every analysis in EcologyCore is run by calling a single function. In this case, the function is called `beta_diversity`.
 
+### Distance Metrics
+The following distance metrics are supported and can be specified by overriding the distance argument, e.g. `distance = c(metrics$BrayCurtis, metrics$UnweightedUniFrac, metrics$WeightedUniFrac)`:
+- Bray-Curtis: just looks at difference in abundance
+- Unweighted UniFrac: just looks at phylogeny
+- Weighted UniFrac: looks at both
+
 ```{r analyse, include=FALSE}
 #### Analysis ####
 
-dt <- alpha_diversity(abund_table, meta_table, grouping_column)
+dt <- beta_diversity(abund_table, meta_table, grouping_column)
 
 # Some absolutely fucking insufferable bug causes this to fail if its run in a package
 # so fuck it I'm sticking it here instead
@@ -162,7 +166,10 @@ rm(result)
 Once the analysis is complete, a separate function call draws the plots, and these are rendered here in the notebook.
 
 ```{r plot, echo=FALSE}
-plot_alpha_diversity(df, df_pw)
+plot <- plot_beta_diversity(df, df_pw)
+plot <- plot_theme_default(plot)
+
+print(plot)
 ```
 
 ## Saving Data

@@ -7,7 +7,7 @@
 # library(ggplot2)
 # library(yarrr)
 
-null_modelling_plot <- function() {
+plot_qpe <- function() {
   #PARAMETERS ###########################
   label="Hypothesis1"
   PairwisebNTI<-read.csv("PairwisebNTI_Hypothesis1.csv",header=T,row.names=1)
@@ -73,9 +73,10 @@ null_modelling_plot <- function() {
   p<-p+ylab("% Assembly Processes")
   p<-p+theme(strip.background = element_rect(fill="white"))+theme(panel.spacing = unit(2, "lines"),
                                                                   axis.text.x = element_text(angle = 90, hjust = 1))
-  print(p)
-  dev.off()
+  return(p)
+}
 
+plot_ems <- function() {
   #We move on to EMS (Elements of Metacommunity Structure)
   #UMER: Not confident about interpretation, MAY BE BUGGY!
   collated_community_types<-NULL
@@ -148,13 +149,16 @@ null_modelling_plot <- function() {
                                                                   axis.text.x = element_text(angle = 90, hjust = 1))
 
   p<-p+theme_minimal()
-  print(p)
-  dev.off()
 
+  return(p)
+}
+
+  # pdf(paste("RC_",label,".pdf",sep=""),width=RC_width,height=RC_height)
+plot_rc <- function(RC) {
   RC<-cbind(RC,Groups=rownames(RC))
   #Change the ordering of the Groups
   RC$Groups<-factor(as.character(RC$Groups),levels=ordering)
-  pdf(paste("RC_",label,".pdf",sep=""),width=RC_width,height=RC_height)
+
   p<-ggplot(RC,aes(Groups,value,colour=Groups))
   p<-p+geom_errorbar(aes(ymin=value-se, ymax=value+se), width=.1, lty=1)+
     geom_point(size=5)
@@ -174,6 +178,5 @@ null_modelling_plot <- function() {
   p<-p+theme(strip.background = element_rect(fill="white"))+theme(panel.spacing = unit(2, "lines"),
                                                                   axis.text.x = element_text(angle = 90, hjust = 1))
 
-  print(p)
-  dev.off()
+  return(p)
 }

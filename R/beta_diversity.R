@@ -6,6 +6,8 @@
 # library(stringr)
 # library(grid)
 
+metrics <- list("BrayCurtis" = 0, "UnweightedUniFrac" = 1, "WeightedUniFrac" = 2)
+
 beta_diversity_analysis <- function(physeq) {
   # TODO: remove
   grouping_column <- "Groups"
@@ -212,27 +214,15 @@ beta_diversity_plot <- function(PCOA) {
 
   p<-p+xlab(paste("Dim1 (",sprintf("%.4g",(sol$eig[1]/sum(sol$eig))*100),"%)",sep=""))+ylab(paste("Dim2 (",sprintf("%.4g",(sol$eig[2]/sum(sol$eig))*100),"%)",sep=""))
 
-  p<-p+theme(legend.title=element_text(size=legend_title_size),
-             legend.text=element_text(size=legend_text_size),
-             text = element_text(size=text_size),
-             axis.text=element_text(size=axis_text_size),
-             axis.title=element_text(size=axis_title_size))
+  return(p)
+}
 
-
-  if(use_provided_colors){
-    p<-p+scale_color_manual("Groups",values=colours)
-    p<-p+scale_fill_manual("Groups",values=colours)
-  }
-
-
+beta_diversity_write <- function() {
   pdf(paste("PCOA_",which_distance,"_",which_level,"_",label,".pdf",sep=""),width=width_image,height=height_image)
   print(p)
   dev.off()
 
   dist<-phyloseq::distance(physeq,which_distance)
   capture.output(adonis(as.formula(paste("dist ~",paste(PERMANOVA_variables,collapse="+"))), data=meta_table[rownames(otu_table(physeq)),]),file=paste("ADONIS_",which_distance,"_",which_level,"_",label,".txt",sep=""))
-}
 
-beta_diversity_write <- function() {
-  # TBD
 }

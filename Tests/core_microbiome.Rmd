@@ -25,12 +25,10 @@ tree_path <- "/Users/reuben/Dropbox/Cindy_Alison_Umer_SandDam/data/DADA2/tree.nw
 grouping_column <- "Groups"
 
 which_level<-"Phylum" #Phylum Class Order Family Genus Otus
-height_image_heatmap=16
-legend_text_size=6
-legend_title_size=8
+
 what_detection="absolute" #absolute relative
 minimum_prevalence=0.85
-text_size=12
+
 
 ```
 
@@ -95,22 +93,7 @@ Every analysis in EcologyCore is run by calling a single function. In this case,
 ```{r analyse, include=FALSE}
 #### Analysis ####
 
-dt <- alpha_diversity(abund_table, meta_table, grouping_column)
 
-# Some absolutely fucking insufferable bug causes this to fail if its run in a package
-# so fuck it I'm sticking it here instead
-pval<-data.table::as.data.table(dt)[, list(pvalue = sprintf("%.2g", tryCatch({
-   summary(stats::aov(value ~ .SD$.group.))[[1]][["Pr(>F)"]][1]
-  }, error = function(e) NULL))),
-  by = list(measure)
-]
-  
-result <- alpha_diversity_2(dt, pval, meta_table, grouping_column)
-
-df <- result[[1]]
-df_pw <- result[[2]]
-
-rm(result)
 ```
 
 ## Including Plots
@@ -118,7 +101,21 @@ rm(result)
 Once the analysis is complete, a separate function call draws the plots, and these are rendered here in the notebook.
 
 ```{r plot, echo=FALSE}
-plot_alpha_diversity(df, df_pw)
+
+plot <- core_microbiome(physeq)
+plot <- plot_theme_default(plot)
+
+plot <- theme_cowplot(font_size = text_size) + theme(
+    panel.border = element_blank(), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), 
+    axis.line = element_line(colour = "black"),
+    axis.text.x = element_text(angle=90,vjust=0.5,hjust = 1),
+  )
+
+if(what_detection=="relative"){
+  plot <- plot + xlab("Relative Abundance (%)")
+}
 ```
 
 ## Saving Data
@@ -128,5 +125,9 @@ It is good practice to save the data produced by the analyses in a non-destructi
 By default, we save a workspace image containing the output of each analysis step in an RData file. This provides an easy way for the user to open the data created by this software and analyse it further, independently. For users that don't use R, or that want a more portable format, we provide an option to export data in CSV format.
 
 ```{r save, include=FALSE}
+width_image_heatmap <- ceiling(nlevels(datacore$data$Taxa) / 5) + 2
+height_image_heatmap <- 16
+filename <- paste("Core_Heatmap_",label,"_",which_level,"_",what_detection,".pdf",sep="")
 
+save_plot(plot, filename, width = width_image_heatmap, height = height_image_heatmap)
 ```

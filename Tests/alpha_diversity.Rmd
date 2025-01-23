@@ -24,23 +24,6 @@ meta_path="/Users/reuben/Dropbox/Cindy_Alison_Umer_SandDam/data/meta_table.csv"
 grouping_column<-"Groups"
 
 which_level="Phylum" #Otus Genus Family Order Class Phylum
-text_size=16
-point_size=5
-point_opacity=0.8
-axis_text_size=12
-strip_text_size=16
-increment_divider=2
-exclude_pvalues_text_from_drawing=FALSE
-legends_position_bottom=TRUE
-exclude_legends=TRUE
-pairwise_text_size=7
-number_of_rows=1
-legend_text_size=12
-axis_title_size=16
-height_image=10
-width_image=25
-use_provided_colors=FALSE
-colours <- c("#ffa172", "#81fc76", "#68aeff","#c320d8","#2BCE48","#FFCC99","#808080","#94FFB5","#8F7C00","#9DCC00","#C20088","#003380","#FFA405","#FFA8BB","#426600","#FF0010","#5EF1F2","#00998F","#740AFF","#990000","#FFFF00",grey.colors(1000));
 ```
 
 ## Alpha Diversity
@@ -124,10 +107,18 @@ rm(result)
 
 ## Including Plots
 
-Once the analysis is complete, a separate function call draws the plots, and these are rendered here in the notebook.
+Once the analysis is complete, a separate function call draws the plots, and these are rendered here in the notebook. 
+
+### Theming
+The `plot_theme_default` function applies a consistent style across all plots in the package with good looking defaults. Common plot features can be modified easily through the exposed arguments. This function returns a regular ggplot which can also be themed manually if required.
+
+Note: some plots use additional theming options and may override defaults here.
 
 ```{r plot, echo=FALSE}
-plot_alpha_diversity(df, df_pw)
+plot <- plot_alpha_diversity(df, df_pw)
+plot <- plot_theme_default(plot)
+
+print(plot)
 ```
 
 ## Saving Data
@@ -137,5 +128,10 @@ It is good practice to save the data produced by the analyses in a non-destructi
 By default, we save a workspace image containing the output of each analysis step in an RData file. This provides an easy way for the user to open the data created by this software and analyse it further, independently. For users that don't use R, or that want a more portable format, we provide an option to export data in CSV format.
 
 ```{r save, include=FALSE}
+height_image = 10
+width_image = 25
 
+save_plot(plot, paste("ANOVA_diversity_",which_level,"_",label,".pdf",sep=""), width_image, height_image)
+
+# save data
 ```

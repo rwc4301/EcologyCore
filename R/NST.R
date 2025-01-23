@@ -48,20 +48,20 @@ nst <- function(physeq) {
   df<-rbind(df,tmp)
 }
 
-nst_plot <- function() {
-  pdf(paste("Stochasticity-Ratios_",null_model,"_",distance_measure,"_",as.character(number_of_randomizations),"_",as.character(SES),"_",as.character(RC),"_",as.character(abundance.weighted),"_",label,"_FIGURE",".pdf",sep=""),width=NST_width,height=NST_height)
-  p<-ggplot(df, aes(x=Groups, y=value, fill=Groups))
-  p<-p+geom_bar(stat="identity")+theme_minimal()
-  p<-p+geom_text(aes(label=sprintf("%0.2f", round(value, digits = 2))), vjust=-0.3, size=3.5)
-  p<-p+facet_wrap(~measure, strip.position="left", ncol=1,scales="free_y")
-  p<-p+scale_fill_manual(values=colours)
-  p<-p+ylim(0,1.1)
-  p<-p+ylab("Stochasticity Ratios (scaled to 1)")
-  p<-p+theme(strip.background = element_rect(fill="white"))+theme(panel.spacing = unit(2, "lines"),
-                                                                  axis.text.x = element_text(angle = 90, hjust = 1))
-  print(p)
-  dev.off()
+plot_nst <- function(df) {
+  p <- ggplot(df, aes(x=Groups, y=value, fill=Groups)) +
+    geom_bar(stat="identity") +
+    geom_text(aes(label=sprintf("%0.2f", round(value, digits = 2))), vjust=-0.3, size=3.5) +
+    facet_wrap(~measure, strip.position="left", ncol=1,scales="free_y") +
+    scale_fill_manual(values=colours) +
+    ylim(0,1.1) +
+    ylab("Stochasticity Ratios (scaled to 1)") +
+    theme(panel.spacing = unit(2, "lines"))
 
+  return(p)
+}
+
+save_data <- function() {
   #Perform PANOVA
   nst.pova=nst.panova(nst.result=tnst, rand=number_of_randomizations)
   #Convert group numbers to actual names

@@ -50,8 +50,7 @@ null_model="PF" #"EE" "EP" "EF" "PE" "PP" "PF" "FE" "FP" "FF" with details given
 #   "Fixed" means the occurrence frequency of a taxon is fixed as observed
 SES = TRUE #Logic, whether to calculate standardized effect size, which is (observed dissimilarity - mean of null dissimilarity)/standard deviation of null dissimilarity. default is FALSE.
 RC = FALSE # Logic, whether to calculate modified Raup-Crick metric, which is percentage of null dissimilarity lower than observed dissimilarity x 2 - 1. default is FALSE.
-NST_width=4
-NST_height=8
+
 
 ```
 
@@ -144,7 +143,7 @@ rm(result)
 Once the analysis is complete, a separate function call draws the plots, and these are rendered here in the notebook.
 
 ```{r plot, echo=FALSE}
-plot_alpha_diversity(df, df_pw)
+plot_nst(df)
 ```
 
 ## Saving Data
@@ -154,5 +153,9 @@ It is good practice to save the data produced by the analyses in a non-destructi
 By default, we save a workspace image containing the output of each analysis step in an RData file. This provides an easy way for the user to open the data created by this software and analyse it further, independently. For users that don't use R, or that want a more portable format, we provide an option to export data in CSV format.
 
 ```{r save, include=FALSE}
+filename <- paste("Stochasticity-Ratios_",null_model,"_",distance_measure,"_",as.character(number_of_randomizations),"_",as.character(SES),"_",as.character(RC),"_",as.character(abundance.weighted),"_",label,"_FIGURE",".pdf",sep="")
+NST_width=4
+NST_height=8
 
+save_plot(plot, filename, width = NST_width, height = NST_height)
 ```

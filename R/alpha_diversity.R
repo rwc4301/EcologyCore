@@ -158,7 +158,6 @@ plot_alpha_diversity <- function(df, df_pw) {
   }
 
   p<-p+geom_boxplot(outlier.size=0,show.legend=FALSE)#+geom_jitter(position = position_jitter(height = 0, width=0),show.legend=FALSE)
-  p<-p+theme_bw()
   p<-p+geom_point(size=point_size,alpha=point_opacity)
   p<-p+facet_wrap(~measure,scales="free_y",nrow=number_of_rows)+ylab("Observed Values")+xlab("Samples")
 
@@ -175,44 +174,13 @@ plot_alpha_diversity <- function(df, df_pw) {
   if(use_provided_colors){
     p<-p+scale_color_manual(grouping_column,values=colours)
   }
-  #if crashes at panel.margin change it to panel.spacing, if crashes at panel.spacing, change it to panel.margin
-  p<-p+theme(
-    strip.background = element_rect(fill="white"),
-    panel.spacing = unit(2, "lines"),
-    strip.text = element_text(size=strip_text_size),
-    legend.text = element_text(size=legend_text_size),
-    text = element_text(size=text_size),
-    axis.text = element_text(size=axis_text_size),
-    axis.title = element_text(size=axis_title_size),
-    axis.text.x = element_text(angle = 90, hjust = 1)
-  )
-
-  if(legends_position_bottom){
-    p<-p+theme(legend.key = element_blank(),  #removes the box around each legend item
-               legend.position = "bottom", #legend at the bottom
-               legend.direction = "horizontal",
-               legend.box = "horizontal",
-               legend.box.just = "centre")
-  }
-  if(exclude_legends){
-    p<-p+guides(colour=FALSE)
-  }
 
   return (p)
-}
-
-theme_plot <- function(p) {
-
-
-  return(p)
 }
 
 #### Write Data Out ####
 
 write_data <- function() {
-  pdf(paste("ANOVA_diversity_",which_level,"_",label,".pdf",sep=""),height=height_image,width=width_image)
-  print(p)
-  dev.off()
 
   #Write all the metrics in a file for further analyses elsewhere
   data_to_write<-data.frame(df_R[,"value",drop=F],df_H[,"value",drop=F],df_simp[,"value",drop=F],df_alpha[,"value",drop=F],df_J[,"value",drop=F])

@@ -91,14 +91,15 @@ differential_expression_analysis <- function(physeq) {
 
 }
 
-differential_expression_plot <- function() {
-  p<-ggplot(df,aes(Groups,Value,colour=Groups))+ylab("Log-relative normalised")
-  p<-p+geom_boxplot(outlier.size = 0)+geom_jitter(position = position_jitter(height = 0, width=0),alpha=0.5,outlier.colour = NULL)+theme_bw()+
-    facet_wrap( ~ Taxa , scales="free_x",nrow=1)
-  p<-p+theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))+theme(strip.text.x = element_text(size = 16, colour = "black", angle = 90))
-  pdf(paste("NB_significant_",which_level,"_",labels,".pdf",sep=""),width=ceiling((length(sig_otus)*80/200)+2.6),height=height_image)
-  print(p)
-  dev.off()
+plot_differential_expression <- function(df) {
+  p <- ggplot(df, aes(Groups, Value, colour = Groups)) +
+    geom_boxplot(outlier.size = 0) +
+    geom_jitter(position = position_jitter(height = 0, width=0),alpha=0.5,outlier.colour = NULL) +
+    ylab("Log-relative normalised") +
+    facet_wrap( ~ Taxa , scales="free_x",nrow=1) +
+    theme(strip.text.x = element_text(size = 16, colour = "black", angle = 90))
+
+  return (p)
 }
 
 differential_expression_write <- function() {

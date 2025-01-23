@@ -269,5 +269,5 @@ It is good practice to save the data produced by the analyses in a non-destructi
 By default, we save a workspace image containing the output of each analysis step in an RData file. This provides an easy way for the user to open the data created by this software and analyse it further, independently. For users that don't use R, or that want a more portable format, we provide an option to export data in CSV format.
 
 ```{r save, include=FALSE}
-
+save_plot(plot, paste("NB_significant_",which_level,"_",labels,".pdf",sep=""), width = ceiling((length(sig_otus) * 80 / 200) + 2.6), height = height_image)
 ```

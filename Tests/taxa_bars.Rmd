@@ -31,8 +31,7 @@ axis_title_size=30
 text_size=30
 axis_text_size=30
 strip_text_size=30
-height_image=25
-width_image=30
+
 how_many_columns_for_legend=1
 #By default, the labels are displayed on the top and right of the plot. 
 #If "x", the top labels will be displayed to the bottom. 
@@ -157,5 +156,9 @@ It is good practice to save the data produced by the analyses in a non-destructi
 By default, we save a workspace image containing the output of each analysis step in an RData file. This provides an easy way for the user to open the data created by this software and analyse it further, independently. For users that don't use R, or that want a more portable format, we provide an option to export data in CSV format.
 
 ```{r save, include=FALSE}
+height_image <- 25
+width_image <- 30
+filename <- paste("TAXAplot_",which_level,"_",label,".pdf",sep="")
 
+save_plot(plot, filename, height = height_image, width = width_image)
 ```

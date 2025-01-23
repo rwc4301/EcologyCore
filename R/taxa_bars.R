@@ -56,28 +56,24 @@ taxa_bars_analysis <- function(physeq) {
   # then use df$Sample<-factor(as.character(df$Sample),levels=c()) list
 }
 
-taxa_bars_plot <- function() {
-  p<-ggplot(df,aes(Sample,Value,fill=Taxa))+geom_bar(stat="identity")+facet_grid(. ~ Groups, drop=TRUE,scale="free",space="free_x",switch=switch_strip)
-  p<-p+scale_fill_manual(values=colours[1:(N+1)],guide=guide_legend(ncol = how_many_columns_for_legend))
-  p<-p+theme_bw()+ylab("Proportions")
-  p<-p+ scale_y_continuous(expand = c(0.02,0))+theme(strip.background = element_rect(fill="gray85"),
-                                                     panel.spacing = unit(0.3, "lines"),
-                                                     legend.position = "bottom",
-                                                     strip.text = element_text(size=strip_text_size,angle=90),
-                                                     legend.text=element_text(size=legend_text_size),
-                                                     text = element_text(size=text_size),
-                                                     axis.text=element_text(size=axis_text_size),
-                                                     axis.title=element_text(size=axis_title_size))
+taxa_bars_plot <- function(df) {
+  p <- ggplot(df, aes(Sample, Value, fill = Taxa)) +
+    geom_bar(stat = "identity") +
+    facet_grid(. ~ Groups, drop = TRUE, scale = "free", space = "free_x", switch = switch_strip) +
+    scale_fill_manual(values = colours[1:(N+1)], guide = guide_legend(ncol = how_many_columns_for_legend)) +
+    ylab("Proportions") +
+    scale_y_continuous(expand = c(0.02, 0)) +
+    theme(
+      strip.background = element_rect(fill="gray85"),
+      panel.spacing = unit(0.3, "lines"),
+      strip.text = element_text(size=strip_text_size,angle=90),
+    )
 
-  if(reveal_sample_names){
-    p<-p+theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+  if(reveal_sample_names) {
+    p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
   } else {
-    p<-p+theme(axis.text.x=element_blank(),axis.ticks=element_blank())
+    p <- p + theme(axis.text.x = element_blank(), axis.ticks = element_blank())
   }
 
-
-
-  pdf(paste("TAXAplot_",which_level,"_",label,".pdf",sep=""),height=height_image,width=width_image)
-  print(p)
-  dev.off()
+  return(p)
 }

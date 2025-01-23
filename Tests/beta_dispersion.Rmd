@@ -25,11 +25,6 @@ tree_path <- "/Users/reuben/Dropbox/Cindy_Alison_Umer_SandDam/data/DADA2/tree.nw
 grouping_column <- "Groups"
 
 which_distance<-"bray" #bray unifrac wunifrac
-height_image=12
-width_image=25
-use_provided_colors=TRUE
-colours<-c("#F8766D","#F8766D","#A3A500","#A3A500","#00BF7D","#00BF7D","#00B0F6","#00B0F6","#E76BF3","#E76BF3")
-
 ```
 
 ## Beta Diversity
@@ -125,7 +120,10 @@ rm(result)
 Once the analysis is complete, a separate function call draws the plots, and these are rendered here in the notebook.
 
 ```{r plot, echo=FALSE}
-plot_alpha_diversity(df, df_pw)
+plot <- plot_beta_diversity(df, df_pw)
+plot <- plot_theme_default(plot)
+
+print(plot)
 ```
 
 ## Saving Data

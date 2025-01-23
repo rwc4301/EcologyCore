@@ -42,6 +42,7 @@ core_microbiome <- function(physeq) {
   prevalences <- seq(.05, 1, .05)
   detections<-NULL
   pseq_to_plot<-NULL
+
   if(what_detection=="relative"){
     #Detection with Relative Abundances
     detections <- 10^seq(log10(1e-3), log10(.2), length = 20)
@@ -96,25 +97,8 @@ core_microbiome <- function(physeq) {
     # replace the data in the plot object
     datacore$data <- df
   } else {
-    datacore$data<-datacore$data[datacore$data$Taxa!="__Unknowns__",]}
-}
-
-core_microbiome_plot <- function() {
-  #Now plot it
-  pdf(paste("Core_Heatmap_",label,"_",which_level,"_",what_detection,".pdf",sep=""),width=ceiling(nlevels(datacore$data$Taxa)/5)+2,height=height_image_heatmap)
-  p<-datacore
-  p<-p+theme_bw()  + theme_cowplot(font_size = text_size) + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-                                                                  panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    theme(axis.text.x  = element_text(angle=90,vjust=0.5,hjust = 1),legend.title=element_text(size=legend_title_size),
-          legend.text=element_text(size=legend_text_size))
-
-
-
-  if(what_detection=="relative"){
-    p<-p + xlab("Relative Abundance (%)")
+    datacore$data<-datacore$data[datacore$data$Taxa!="__Unknowns__",]
   }
-  print(p)
-  dev.off()
+
+  return(datacore)
 }
-
-

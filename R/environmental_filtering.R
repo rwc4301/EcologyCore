@@ -135,7 +135,7 @@ environmental_filtering_analysis <- function(physeq) {
   }
 }
 
-environmental_filtering_plot <- function() {
+plot_environmental_filtering <- function() {
   #Get rid of NA columns
   df<-df[complete.cases(df$value),]
 
