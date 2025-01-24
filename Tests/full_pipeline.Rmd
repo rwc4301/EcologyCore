@@ -1,5 +1,5 @@
 ---
-title: "Full Pipeline"
+title: "Full Workflow"
 date: "`r Sys.Date()`"
 output: 
   html_document:
@@ -62,9 +62,95 @@ taxa_tree <- result[[4]]
 rm(result)
 ```
 
-## Setting up Hypotheses
+# Alpha Diversity
 
-Initially, we're interested in finding differences between flow rates, so we set up the code to group samples by flow rate.
+Alpha diversity measures indicate species diversity within individual samples.
+
+- **Richness:** The total number of unique species (or operational taxonomic units) present in a sample, without considering their abundance.
+- **Shannon Index:** A measure of species diversity that accounts for both richness and evenness, giving higher values to communities with more evenly distributed species.
+- **Fisher’s Alpha:** A parameter from the Fisher log-series model that estimates diversity by describing the relationship between species richness and abundance, particularly useful for highly diverse communities.
+- **Pielou’s Evenness:** A measure of how evenly individuals are distributed among species in a community, ranging from 0 (uneven) to 1 (perfectly even).
+- **Simpson Index:** A measure of dominance that quantifies the probability that two randomly selected individuals belong to the same species, with lower values indicating higher diversity.
+
+## Hypothesis Setting
+
+Group samples by flow rate.
+
+```{r hypothesis, include=TRUE}
+#### Hypothesis ####
+
+# Hypothesis 1
+label="Flow"
+
+meta_table$Groups <- as.factor(as.character(paste("Flow: ", meta_table$sweetening.flow)))
+
+meta_table$Type <- meta_table$Groups
+meta_table$Type2 <- meta_table$Groups
+
+meta_table$Connections <- NULL
+```
+
+```{r collate, include=FALSE}
+#Adjust abund_table to contain only those rows that got selected in the Hypothesis space
+abund_table<-abund_table[rownames(meta_table),]
+#After adjustment, get rid of OTUs that are all empty
+abund_table<-abund_table[,colSums(abund_table)>0]
+#Adjust OTU taxonomy
+taxa_table<-taxa_table[colnames(abund_table),]
+
+#### Collate Taxonomy ####
+
+abund_table <- collate_taxonomy(abund_table, taxa_table, which_level)
+```
+
+```{r alpha_diversity, include=FALSE}
+#### Analysis ####
+
+dt <- alpha_diversity(abund_table, taxa_table, meta_table, taxa_tree)
+
+# Some absolutely fucking insufferable bug causes this to fail if its run in a package
+# so fuck it I'm sticking it here instead
+pval<-data.table::as.data.table(dt)[, list(pvalue = sprintf("%.2g", tryCatch({
+   summary(stats::aov(value ~ .SD$.group.))[[1]][["Pr(>F)"]][1]
+  }, error = function(e) NULL))),
+  by = list(measure)
+]
+  
+result <- alpha_diversity_2(dt, pval, meta_table, grouping_column)
+
+df <- result[[1]]
+df_pw <- result[[2]]
+
+rm(result)
+```
+
+## Plots
+
+```{r alpha_plot, echo=FALSE}
+point_size = 5
+point_opacity = 0.8
+number_of_rows = 1
+use_provided_colors = FALSE
+pairwise_text_size = 7
+exclude_pvalues_text_from_drawing = FALSE
+
+plot <- plot_alpha_diversity(df, df_pw)
+plot <- plot_theme_default(plot)
+
+print(plot)
+```
+
+# Beta Diversity
+
+Beta diversity measures indicate differences in species composition between samples, capturing community variation.
+
+- **Bray-Curtis:** A dissimilarity index that quantifies differences between communities based on species abundance, ignoring shared absences.
+- **Unweighted UniFrac:** A phylogenetic distance metric that compares communities based on the presence or absence of taxa, incorporating evolutionary relationships.
+- **Weighted UniFrac:** Similar to unweighted UniFrac but also considers the relative abundance of taxa, giving more weight to dominant species in a community.
+
+## Hypothesis Setting
+
+Group samples by run and compare flow conditions.
 
 ```{r hypothesis, include=TRUE}
 #### Hypothesis ####
@@ -92,57 +178,6 @@ taxa_table<-taxa_table[colnames(abund_table),]
 
 abund_table <- collate_taxonomy(abund_table, taxa_table, which_level)
 ```
-
-# Alpha Diversity
-
-Alpha diversity measures indicate the diversity of individual samples. Here, we measure:
-
-- **Richness:** The total number of unique species (or operational taxonomic units) present in a sample, without considering their abundance.
-- **Shannon Index:** A measure of species diversity that accounts for both richness and evenness, giving higher values to communities with more evenly distributed species.
-- **Fisher’s Alpha:** A parameter from the Fisher log-series model that estimates diversity by describing the relationship between species richness and abundance, particularly useful for highly diverse communities.
-- **Pielou’s Evenness:** A measure of how evenly individuals are distributed among species in a community, ranging from 0 (uneven) to 1 (perfectly even).
-- **Simpson Index:** A measure of dominance that quantifies the probability that two randomly selected individuals belong to the same species, with lower values indicating higher diversity.
-
-```{r alpha_diversity, include=FALSE}
-#### Analysis ####
-
-dt <- alpha_diversity(abund_table, taxa_table, meta_table, taxa_tree)
-
-# Some absolutely fucking insufferable bug causes this to fail if its run in a package
-# so fuck it I'm sticking it here instead
-pval<-data.table::as.data.table(dt)[, list(pvalue = sprintf("%.2g", tryCatch({
-   summary(stats::aov(value ~ .SD$.group.))[[1]][["Pr(>F)"]][1]
-  }, error = function(e) NULL))),
-  by = list(measure)
-]
-  
-result <- alpha_diversity_2(dt, pval, meta_table, grouping_column)
-
-df <- result[[1]]
-df_pw <- result[[2]]
-
-rm(result)
-```
-
-## Plots
-
-Plots are shown below.
-
-```{r alpha_plot, echo=FALSE}
-point_size = 5
-point_opacity = 0.8
-number_of_rows = 1
-use_provided_colors = FALSE
-pairwise_text_size = 7
-exclude_pvalues_text_from_drawing = FALSE
-
-plot <- plot_alpha_diversity(df, df_pw)
-plot <- plot_theme_default(plot)
-
-print(plot)
-```
-
-# Beta Diversity
 
 ```{r beta_diversity, include=FALSE}
 #### Analysis ####
@@ -185,3 +220,48 @@ plot <- plot_theme_default(plot)
 
 print(plot)
 ```
+
+# Core Microbiome
+
+The core microbiome captures the set of microbial taxa consistently found across a given group of samples.
+
+## Hypothesis Setting
+
+## Plots
+
+# Differential Expression
+
+Differential expression analyses changes in abundance of taxa between conditions.
+
+## Hypothesis Setting
+
+## Plots
+
+# Assembly Processes
+
+Measures of community assembly processes capture the ecological mechanisms which shape community composition.
+
+- NRI
+- NTI
+- NST
+- QPE
+
+## Hypothesis Setting
+
+## Plots
+
+# Subset Regression
+
+Used to select the set of environmental predictor variables which most efficiently model a given diversity metric.
+
+## Hypothesis Setting
+
+## Plots
+
+# Variable Selection
+
+Used to select two groups of taxa whose balance is most efficiently associated with an environmental variable.
+
+## Hypothesis Setting
+
+## Plots
