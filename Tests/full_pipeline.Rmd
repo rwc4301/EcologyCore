@@ -1,0 +1,187 @@
+---
+title: "Full Pipeline"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    fig_width: 16
+    fig_height: 10
+    fig_caption: true
+    number_sections: true
+    toc: true
+    toc_float:
+      collapsed: false
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+knitr::opts_chunk$set(echo = TRUE)
+
+# For testing
+devtools::load_all("..")
+
+# For production
+# library(EcologyCore)
+```
+
+```{r params, include=FALSE}
+#### Parameters ####
+
+biom_path="/Users/reuben/test_data/data/Batch 1/asv_even_taxon.biom"
+meta_path="/Users/reuben/test_data/data/metadata.csv"
+grouping_column<-"Groups"
+
+which_level="Otus" #Otus Genus Family Order Class Phylum
+```
+
+# Introduction
+
+This workflow runs through a number of ecological analyses in series as follows:
+
+- **Alpha Diversity:** Richness, Shannon Index, Simpson Index, Fisher's Alpha, and Pielou's Evenness
+- **Beta Diversity:** Bray-Curtis, Unweighted UniFrac, and Weighted UniFrac
+- **Core Microbiome:** taxa bars and core heatmaps combine to show the most abundant species in each sample + the most prevalent in each group
+- **Differential Expression:** DESeq2; shows significant differences in abundance between pairs of groups
+- **Community Assembly Processes:** Normalised Stochasticity Ratio, Quantitative Process Estimate
+- **Environmental Filtering:** NRI, NTI; environmental impact on evolution of phylogeny
+- **Subset Regression:** regress metadata against diversity metrics (alpha, NRI, NTI, LCBD, etc.)
+- **Variable Selection:** Selbal, CLR LASSO, CODA LASSO; selects two groups of taxa whose balance is most associated with the response (metadata) variable
+
+In combination, these analyses are intended to give a complete picture of an ecological system.
+
+```{r data, include=FALSE}
+#### Data Import ####
+
+result <- import_data(biom_path, meta_path)
+
+abund_table <- result[[1]]
+taxa_table <- result[[2]]
+meta_table <- result[[3]]
+taxa_tree <- result[[4]]
+
+rm(result)
+```
+
+## Setting up Hypotheses
+
+Initially, we're interested in finding differences between flow rates, so we set up the code to group samples by flow rate.
+
+```{r hypothesis, include=TRUE}
+#### Hypothesis ####
+
+# Hypothesis 1
+label="Flow"
+
+meta_table$Groups <- as.factor(as.character(paste("Run ", meta_table$run)))
+
+meta_table$Type <- as.factor(as.character(paste("Flow: ", meta_table$sweetening.flow)))
+meta_table$Type2 <- meta_table$Type
+
+meta_table$Connections <- NULL
+```
+
+```{r collate, include=FALSE}
+#Adjust abund_table to contain only those rows that got selected in the Hypothesis space
+abund_table<-abund_table[rownames(meta_table),]
+#After adjustment, get rid of OTUs that are all empty
+abund_table<-abund_table[,colSums(abund_table)>0]
+#Adjust OTU taxonomy
+taxa_table<-taxa_table[colnames(abund_table),]
+
+#### Collate Taxonomy ####
+
+abund_table <- collate_taxonomy(abund_table, taxa_table, which_level)
+```
+
+# Alpha Diversity
+
+Alpha diversity measures indicate the diversity of individual samples. Here, we measure:
+
+- **Richness:** The total number of unique species (or operational taxonomic units) present in a sample, without considering their abundance.
+- **Shannon Index:** A measure of species diversity that accounts for both richness and evenness, giving higher values to communities with more evenly distributed species.
+- **Fisher’s Alpha:** A parameter from the Fisher log-series model that estimates diversity by describing the relationship between species richness and abundance, particularly useful for highly diverse communities.
+- **Pielou’s Evenness:** A measure of how evenly individuals are distributed among species in a community, ranging from 0 (uneven) to 1 (perfectly even).
+- **Simpson Index:** A measure of dominance that quantifies the probability that two randomly selected individuals belong to the same species, with lower values indicating higher diversity.
+
+```{r alpha_diversity, include=FALSE}
+#### Analysis ####
+
+dt <- alpha_diversity(abund_table, taxa_table, meta_table, taxa_tree)
+
+# Some absolutely fucking insufferable bug causes this to fail if its run in a package
+# so fuck it I'm sticking it here instead
+pval<-data.table::as.data.table(dt)[, list(pvalue = sprintf("%.2g", tryCatch({
+   summary(stats::aov(value ~ .SD$.group.))[[1]][["Pr(>F)"]][1]
+  }, error = function(e) NULL))),
+  by = list(measure)
+]
+  
+result <- alpha_diversity_2(dt, pval, meta_table, grouping_column)
+
+df <- result[[1]]
+df_pw <- result[[2]]
+
+rm(result)
+```
+
+## Plots
+
+Plots are shown below.
+
+```{r alpha_plot, echo=FALSE}
+point_size = 5
+point_opacity = 0.8
+number_of_rows = 1
+use_provided_colors = FALSE
+pairwise_text_size = 7
+exclude_pvalues_text_from_drawing = FALSE
+
+plot <- plot_alpha_diversity(df, df_pw)
+plot <- plot_theme_default(plot)
+
+print(plot)
+```
+
+# Beta Diversity
+
+```{r beta_diversity, include=FALSE}
+#### Analysis ####
+which_distance<-"bray"
+kind <- "se" #sd se (sd is for drawing ellipse based on sd, se is for drawing ellipse based on standard errors)
+
+
+result <- beta_diversity(abund_table, taxa_table, meta_table, taxa_tree)
+
+PCOA <- result[[1]]
+PCOA_lines <- result[[2]]
+df_ell <- result[[3]]
+sol <- result[[4]]
+
+rm(result)
+```
+
+## Plots
+
+```{r beta_plot, echo=FALSE}
+# point_size = 5
+# point_opacity = 0.8
+# number_of_rows = 1
+# use_provided_colors = FALSE
+
+draw_glow=FALSE
+draw_mean_values_text=FALSE
+draw_confidence_intervals=TRUE
+draw_ellipses_and_not_polygons=FALSE
+
+opacity_ellipses_polygons=0.2
+linesize_ellipses_polygons=0.8
+linetype_ellipses_polygons="solid" #blank solid dashed dotted dotdash longdash twodash
+
+exclude_legends=FALSE
+
+
+plot <- beta_diversity_plot(PCOA, PCOA_lines, df_ell, sol)
+plot <- plot_theme_default(plot)
+
+print(plot)
+```

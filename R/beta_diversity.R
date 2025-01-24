@@ -8,27 +8,28 @@
 
 metrics <- list("BrayCurtis" = 0, "UnweightedUniFrac" = 1, "WeightedUniFrac" = 2)
 
-beta_diversity_analysis <- function(physeq) {
+beta_diversity <- function(abund_table, OTU_taxonomy, meta_table, OTU_tree) {
+# beta_diversity <- function(physeq) {
   # TODO: remove
   grouping_column <- "Groups"
 
   # Process input data
-  abund_table <- phyloseq::otu_table(physeq)
-  meta_table <- phyloseq::sample_data(physeq)
-  OTU_taxonomy <- phyloseq::tax_table(physeq)
-  OTU_tree <- phyloseq::phy_tree(physeq)
+  # abund_table <- phyloseq::otu_table(physeq)
+  # meta_table <- phyloseq::sample_data(physeq)
+  # OTU_taxonomy <- phyloseq::tax_table(physeq)
+  # OTU_tree <- phyloseq::phy_tree(physeq)
 
   #Convert the data to phyloseq format
-  OTU = otu_table(as.matrix(abund_table), taxa_are_rows = FALSE)
-  TAX = tax_table(as.matrix(OTU_taxonomy))
-  SAM = sample_data(meta_table)
+  OTU = phyloseq::otu_table(as.matrix(abund_table), taxa_are_rows = FALSE)
+  TAX = phyloseq::tax_table(as.matrix(OTU_taxonomy))
+  SAM = phyloseq::sample_data(meta_table)
 
   physeq<-NULL
   if(which_level=="Otus"){
     #physeq<-merge_phyloseq(phyloseq(OTU, TAX),SAM,midpoint(OTU_tree))
-    physeq<-merge_phyloseq(phyloseq(OTU, TAX),SAM,OTU_tree)
+    physeq<-phyloseq::merge_phyloseq(phyloseq::phyloseq(OTU, TAX),SAM,OTU_tree)
   } else {
-    physeq<-merge_phyloseq(phyloseq(OTU),SAM)
+    physeq<-phyloseq::merge_phyloseq(phyloseq::phyloseq(OTU),SAM)
   }
 
 
@@ -40,12 +41,6 @@ beta_diversity_analysis <- function(physeq) {
     theta <- (0:npoints) * 2 * pi/npoints
     Circle <- cbind(cos(theta), sin(theta))
     t(center + scale * t(Circle %*% chol(cov)))
-  }
-
-  #coloring function
-  gg_color_hue<-function(n){
-    hues=seq(15,375,length=n+1)
-    hcl(h=hues,l=65,c=100)[1:n]
   }
 
   sol<-NULL
@@ -64,7 +59,7 @@ beta_diversity_analysis <- function(physeq) {
     PCOA=data.frame(x=sol$points[,1],y=sol$points[,2],meta_table)
 
     plot.new()
-    ord<-ordiellipse(sol, interaction(meta_table$Groups,meta_table$Type2),display = "sites", kind = kind, conf = 0.95, label = T)
+    ord<-vegan::ordiellipse(sol, interaction(meta_table$Groups,meta_table$Type2),display = "sites", kind = kind, conf = 0.95, label = T)
     dev.off()
 
 
@@ -152,13 +147,19 @@ beta_diversity_analysis <- function(physeq) {
     }
     #/#Connecting samples based on lines with meta_table$Connections and meta_table$Subconnections ###########
 
-    return(PCOA)
+    return(list(PCOA, PCOA_lines, df_ell, sol))
   }
 
   return(NULL)
 }
 
-beta_diversity_plot <- function(PCOA) {
+beta_diversity_plot <- function(PCOA, PCOA_lines, df_ell, sol) {
+  #coloring function
+  gg_color_hue<-function(n){
+    hues=seq(15,375,length=n+1)
+    hcl(h=hues,l=65,c=100)[1:n]
+  }
+
   cols=gg_color_hue(length(unique(PCOA$Groups)))
 
   p<-ggplot(data=PCOA,aes(x,y,colour=Groups))
@@ -218,11 +219,11 @@ beta_diversity_plot <- function(PCOA) {
 }
 
 beta_diversity_write <- function() {
-  pdf(paste("PCOA_",which_distance,"_",which_level,"_",label,".pdf",sep=""),width=width_image,height=height_image)
-  print(p)
-  dev.off()
-
-  dist<-phyloseq::distance(physeq,which_distance)
-  capture.output(adonis(as.formula(paste("dist ~",paste(PERMANOVA_variables,collapse="+"))), data=meta_table[rownames(otu_table(physeq)),]),file=paste("ADONIS_",which_distance,"_",which_level,"_",label,".txt",sep=""))
-
+  # pdf(paste("PCOA_",which_distance,"_",which_level,"_",label,".pdf",sep=""),width=width_image,height=height_image)
+  # print(p)
+  # dev.off()
+  #
+  # dist<-phyloseq::distance(physeq,which_distance)
+  # capture.output(adonis(as.formula(paste("dist ~",paste(PERMANOVA_variables,collapse="+"))), data=meta_table[rownames(otu_table(physeq)),]),file=paste("ADONIS_",which_distance,"_",which_level,"_",label,".txt",sep=""))
+  #
 }

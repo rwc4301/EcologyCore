@@ -7,15 +7,16 @@
 
 ## Also works for picrust data - need to round abund_table
 
-alpha_diversity <- function(physeq) {
+alpha_diversity <- function(abund_table, OTU_taxonomy, meta_table, OTU_tree) {
+# alpha_diversity <- function(physeq) {
   # TODO: remove
   grouping_column <- "Groups"
 
   # Process input data
-  abund_table <- phyloseq::otu_table(physeq)
-  meta_table <- phyloseq::sample_data(physeq)
-  OTU_taxonomy <- phyloseq::tax_table(physeq)
-  OTU_tree <- phyloseq::phy_tree(physeq)
+  # abund_table <- phyloseq::otu_table(physeq)
+  # meta_table <- phyloseq::sample_data(physeq)
+  # OTU_taxonomy <- phyloseq::tax_table(physeq)
+  # OTU_tree <- phyloseq::phy_tree(physeq)
 
   #Calculate Richness
   R<-vegan::rarefy(abund_table,min(rowSums(abund_table)))
@@ -23,20 +24,20 @@ alpha_diversity <- function(physeq) {
 
   #Calculate Shannon entropy
   H<-vegan::diversity(abund_table)
-  df_H<-data.frame(sample=names(H),value=H,measure=rep("Shannon",length(H)))
+  df_H<-data.frame(sample=names(H),value=H,measure=rep("Shannon Index",length(H)))
 
   #Calculate Simpson diversity index
   simp <- vegan::diversity(abund_table, "simpson")
-  df_simp<-data.frame(sample=names(simp),value=simp,measure=rep("Simpson",length(simp)))
+  df_simp<-data.frame(sample=names(simp),value=simp,measure=rep("Simpson Index",length(simp)))
 
   #Calculate Fisher alpha
   alpha <- vegan::fisher.alpha(abund_table)
-  df_alpha<-data.frame(sample=names(alpha),value=alpha,measure=rep("Fisher alpha",length(alpha)))
+  df_alpha<-data.frame(sample=names(alpha),value=alpha,measure=rep("Fisher's Alpha",length(alpha)))
 
   #Calculate Pielou's evenness
   S <- vegan::specnumber(abund_table)
   J <- H/log(S)
-  df_J<-data.frame(sample=names(J),value=J,measure=rep("Pielou's evenness",length(J)))
+  df_J<-data.frame(sample=names(J),value=J,measure=rep("Pielou's Evenness",length(J)))
 
   #Uncomment to retain everything
   df<-rbind(df_R,df_H,df_simp,df_alpha,df_J)

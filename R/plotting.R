@@ -10,6 +10,8 @@
 
 format <- list("svg", "pdf", "html", "png")
 
+colours <- c("#ffa172", "#81fc76", "#68aeff","#c320d8","#2BCE48","#FFCC99","#808080","#94FFB5","#8F7C00","#9DCC00","#C20088","#003380","#FFA405","#FFA8BB","#426600","#FF0010","#5EF1F2","#00998F","#740AFF","#990000","#FFFF00",grey.colors(1000))
+
 plot_theme_default <- function(
   plot,                                 # ggplot object to theme
   text_size = 16,
@@ -28,11 +30,11 @@ plot_theme_default <- function(
   axis_title_size = 16,
   height_image = 10,
   width_image = 25,
-  use_provided_colors = FALSE,
-  colours <- c("#ffa172", "#81fc76", "#68aeff","#c320d8","#2BCE48","#FFCC99","#808080","#94FFB5","#8F7C00","#9DCC00","#C20088","#003380","#FFA405","#FFA8BB","#426600","#FF0010","#5EF1F2","#00998F","#740AFF","#990000","#FFFF00",grey.colors(1000))
+  use_provided_colors = FALSE
+  #colours <- c("#ffa172", "#81fc76", "#68aeff","#c320d8","#2BCE48","#FFCC99","#808080","#94FFB5","#8F7C00","#9DCC00","#C20088","#003380","#FFA405","#FFA8BB","#426600","#FF0010","#5EF1F2","#00998F","#740AFF","#990000","#FFFF00",grey.colors(1000))
 ) {
   #if crashes at panel.margin change it to panel.spacing, if crashes at panel.spacing, change it to panel.margin
-  plot <- plot + theme_bw() + theme(
+  plot <- plot + theme_light() + theme(
     # Axis theme
     axis.text = element_text(size = axis_text_size),
     axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
@@ -43,8 +45,8 @@ plot_theme_default <- function(
     # Panel theme
     panel.spacing = unit(2, "lines"),
     # Strip theme
-    strip.background = element_rect(fill = "white"),
-    strip.text = element_text(size = strip_text_size),
+    strip.background = element_rect(fill = "#cdcdcd"),
+    strip.text = element_text(size = strip_text_size, color = "black"),
     # Text theme
     text = element_text(size = text_size),
   )
@@ -72,7 +74,7 @@ plot_theme_default <- function(
   return(plot)
 }
 
-save_plot(plot, filename, format = "pdf", height, width) {
+save_plot <- function(plot, filename, format = "pdf", height, width) {
   switch(format,
     "pdf" = {
       pdf(filename, height = height, width = width)

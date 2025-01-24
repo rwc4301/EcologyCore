@@ -1,12 +1,12 @@
 collate_taxonomy <- function(abund_table, taxa_table, rank = "Otus") {
   new_abund_table<-NULL
-  if(which_level=="Otus"){
+  if(rank=="Otus"){
     new_abund_table<-abund_table
   } else {
-    list<-unique(OTU_taxonomy[,which_level])
+    list<-unique(taxa_table[,rank])
     new_abund_table<-NULL
     for(i in list){
-      tmp<-data.frame(rowSums(abund_table[,rownames(OTU_taxonomy)[OTU_taxonomy[,which_level]==i]]))
+      tmp<-data.frame(rowSums(abund_table[,rownames(taxa_table)[taxa_table[,rank]==i]]))
       if(i==""){colnames(tmp)<-c("__Unknowns__")} else {colnames(tmp)<-paste("",i,sep="")}
       if(is.null(new_abund_table)){new_abund_table<-tmp} else {new_abund_table<-cbind(tmp,new_abund_table)}
     }
