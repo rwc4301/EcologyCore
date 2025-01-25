@@ -1,14 +1,14 @@
-import_data <- function(physeq_path, meta_path, tree_path = NULL, round_abund = FALSE) {
+import_data <- function(biom_path, meta_path, tree_path = NULL, round_abund = FALSE) {
   # Wrap everything in the physeq class and return
   physeq <- NULL
   if (!is.null(tree_path)) {
-    physeq <- phyloseq::import_biom(physeq_path, treefilename = tree_path)
+    physeq <- phyloseq::import_biom(biom_path, treefilename = tree_path)
     OTU_tree <- phyloseq::phy_tree(physeq)
 
     # Recent version of R puts apostrophe in the OTU tip labels so we will just remove them if that exist
     OTU_tree$tip.label<-gsub("'","",OTU_tree$tip.label)
   } else {
-    physeq <- phyloseq::import_biom(physeq_path)
+    physeq <- phyloseq::import_biom(biom_path)
   }
   meta_table <- read.csv(meta_path, header = TRUE, row.names = 1)
 
@@ -65,5 +65,21 @@ import_data <- function(physeq_path, meta_path, tree_path = NULL, round_abund = 
 
   #At this point we have abund_table, meta_table, and OTU_taxonomy are ready and their dimensions should match
   return(list(abund_table, OTU_taxonomy, meta_table, OTU_tree))
-  #return(physeq)
+}
+
+frame_to_phyloseq <- function(abund_table, OTU_taxonomy, meta_table, OTU_tree, taxa_rank) {
+  #Convert the data back to phyloseq format
+  OTU = phyloseq::otu_table(as.matrix(abund_table), taxa_are_rows = FALSE)
+  TAX = phyloseq::tax_table(as.matrix(OTU_taxonomy))
+  SAM = phyloseq::sample_data(meta_table)
+
+  physeq<-NULL
+  if(taxa_rank=="Otus"){
+    #physeq<-merge_phyloseq(phyloseq(OTU, TAX),SAM,midpoint(OTU_tree))
+    physeq<-phyloseq::merge_phyloseq(phyloseq::phyloseq(OTU, TAX),SAM,OTU_tree)
+  } else {
+    physeq<-phyloseq::merge_phyloseq(phyloseq::phyloseq(OTU),SAM)
+  }
+
+  return(physeq)
 }

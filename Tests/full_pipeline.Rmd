@@ -29,6 +29,7 @@ devtools::load_all("..")
 
 biom_path="/Users/reuben/test_data/data/Batch 1/asv_even_taxon.biom"
 meta_path="/Users/reuben/test_data/data/metadata.csv"
+tree_path="/Users/reuben/test_data/data/Batch 1/tree_rooted.nwk"
 grouping_column<-"Groups"
 
 which_level="Otus" #Otus Genus Family Order Class Phylum
@@ -52,7 +53,7 @@ In combination, these analyses are intended to give a complete picture of an eco
 ```{r data, include=FALSE}
 #### Data Import ####
 
-result <- import_data(biom_path, meta_path)
+result <- import_data(biom_path, meta_path, tree_path)
 
 abund_table <- result[[1]]
 taxa_table <- result[[2]]

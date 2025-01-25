@@ -6,33 +6,12 @@
 # library(stringr)
 # library(grid)
 
-metrics <- list("BrayCurtis" = 0, "UnweightedUniFrac" = 1, "WeightedUniFrac" = 2)
+metrics = c("bray" = "Bray-Curtis", "unifrac" = "Unweighted UniFrac", "wunifrac" = "Weighted UniFrac")
 
-beta_diversity <- function(abund_table, OTU_taxonomy, meta_table, OTU_tree) {
+beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, distance_metrics = c("bray", "unifrac", "wunifrac"), taxa_rank = "Otus") {
 # beta_diversity <- function(physeq) {
   # TODO: remove
   grouping_column <- "Groups"
-
-  # Process input data
-  # abund_table <- phyloseq::otu_table(physeq)
-  # meta_table <- phyloseq::sample_data(physeq)
-  # OTU_taxonomy <- phyloseq::tax_table(physeq)
-  # OTU_tree <- phyloseq::phy_tree(physeq)
-
-  #Convert the data to phyloseq format
-  OTU = phyloseq::otu_table(as.matrix(abund_table), taxa_are_rows = FALSE)
-  TAX = phyloseq::tax_table(as.matrix(OTU_taxonomy))
-  SAM = phyloseq::sample_data(meta_table)
-
-  physeq<-NULL
-  if(which_level=="Otus"){
-    #physeq<-merge_phyloseq(phyloseq(OTU, TAX),SAM,midpoint(OTU_tree))
-    physeq<-phyloseq::merge_phyloseq(phyloseq::phyloseq(OTU, TAX),SAM,OTU_tree)
-  } else {
-    physeq<-phyloseq::merge_phyloseq(phyloseq::phyloseq(OTU),SAM)
-  }
-
-
 
   #Reference: http://stackoverflow.com/questions/13794419/plotting-ordiellipse-function-from-vegan-package-onto-nmds-plot-created-in-ggplo
   #Data frame df_ell contains values to show ellipses. It is calculated with function veganCovEllipse which is hidden in vegan package. This function is applied to each level of NMDS (group) and it uses also function cov.wt to calculate covariance matrix.
@@ -43,20 +22,58 @@ beta_diversity <- function(abund_table, OTU_taxonomy, meta_table, OTU_tree) {
     t(center + scale * t(Circle %*% chol(cov)))
   }
 
-  sol<-NULL
-  if(which_distance=="bray"){
-    sol<-cmdscale(phyloseq::distance(physeq,"bray"),eig=T)
-  } else if(which_distance=="wunifrac" & which_level=="Otus") {
-    sol<-cmdscale(phyloseq::distance(physeq,"wunifrac"),eig=T)
-  } else if(which_distance=="unifrac" & which_level=="Otus"){
-    sol<-cmdscale(phyloseq::distance(physeq,"unifrac"),eig=T)
+  #Convert the data to phyloseq format
+  OTU = phyloseq::otu_table(as.matrix(abund_table), taxa_are_rows = FALSE)
+  TAX = phyloseq::tax_table(as.matrix(taxa_table))
+  SAM = phyloseq::sample_data(meta_table)
+
+  physeq<-NULL
+  if(which_level=="Otus"){
+    #physeq<-merge_phyloseq(phyloseq(OTU, TAX),SAM,midpoint(taxa_tree))
+    physeq<-phyloseq::merge_phyloseq(phyloseq::phyloseq(OTU, TAX),SAM,taxa_tree)
+  } else {
+    physeq<-phyloseq::merge_phyloseq(phyloseq::phyloseq(OTU),SAM)
   }
 
   #Check to see if the meta_table$Type2 is assigned or not
-  if(is.null(meta_table$Type2)){meta_table$Type2<-meta_table$Groups}
+  if(is.null(meta_table$Type2)) {
+    meta_table$Type2 <- meta_table$Groups
+  }
 
-  if(!is.null(sol)){
-    PCOA=data.frame(x=sol$points[,1],y=sol$points[,2],meta_table)
+  if (taxa_rank != "Otus") {
+    warning("Taxa rank set higher than species; UniFrac distances only support otus.")
+  }
+
+  mds <- list()
+  for (d in distance_metrics) {
+    sol <- NULL
+    if (d == "bray") {
+      sol <- cmdscale(phyloseq::distance(physeq, "bray"), eig = TRUE)
+    } else if (d == "unifrac" && taxa_rank == "Otus") {
+      sol <- cmdscale(phyloseq::distance(physeq, "unifrac"), eig = TRUE)
+    } else if (d == "wunifrac" && taxa_rank == "Otus") {
+      sol <- cmdscale(phyloseq::distance(physeq, "wunifrac"), eig = TRUE)
+    } else {
+      warning("Unsupported distance metric, options are: 'bray', 'unifrac', or 'wunifrac'.")
+    }
+
+    if (!is.null(sol)) {
+      sol <- append(sol, list(metric = d))
+      mds <- append(mds, list(sol))
+    }
+  }
+
+  PCOA <- NULL
+  PCOA_lines <- NULL
+  df_ord <- NULL
+
+  for (sol in mds) {
+  # if(!is.null(sol)) {
+    if (is.null(PCOA)) {
+      PCOA <- data.frame(x = sol$points[,1], y = sol$points[,2], metric = sol$metric, meta_table)
+    } else {
+      PCOA <- rbind(PCOA, data.frame(x = sol$points[,1], y = sol$points[,2], metric = sol$metric, meta_table))
+    }
 
     plot.new()
     ord<-vegan::ordiellipse(sol, interaction(meta_table$Groups,meta_table$Type2),display = "sites", kind = kind, conf = 0.95, label = T)
@@ -65,14 +82,32 @@ beta_diversity <- function(abund_table, OTU_taxonomy, meta_table, OTU_tree) {
 
     #Generate ellipse points
     df_ell <- data.frame()
-    for(h in levels(PCOA$Groups)){
-      for(g in levels(PCOA$Type2)){
-        if(paste(h,".",g,sep="")!="" && (paste(h,".",g,sep="") %in% names(ord))){
-          tryCatch(df_ell <- rbind(df_ell, cbind(as.data.frame(with(PCOA[PCOA$Groups==h & PCOA$Type2==g,],
-                                                        veganCovEllipse(ord[[paste(h,".",g,sep="")]]$cov,ord[[paste(h,".",g,sep="")]]$center,ord[[paste(h,".",g,sep="")]]$scale)))
-                                     ,Groups=h,Type2=g)),error=function(e) NULL)
-     }
-    }
+    for(h in levels(PCOA$Groups)) {
+      for(g in levels(PCOA$Type2)) {
+        if(paste(h, ".", g, sep="") != "" && (paste(h, ".", g, sep="") %in% names(ord))) {
+          tryCatch(
+            {
+              df_ell <- rbind(
+                df_ell,
+                cbind(
+                  as.data.frame(
+                    with(
+                      PCOA[PCOA$Groups == h & PCOA$Type2 == g, ],
+                      veganCovEllipse(ord[[paste(h, ".", g, sep="")]]$cov,
+                                      ord[[paste(h, ".", g, sep="")]]$center,
+                                      ord[[paste(h, ".", g, sep="")]]$scale)
+                    )
+                  ),
+                  Groups = h,
+                  Type2 = g,
+                  metric = as.character(sol$metric)
+                )
+              )
+            },
+            error = function(e) warning(e)
+          )
+        }
+      }
     }
 
     if (sum(dim(df_ell))>0){
@@ -81,11 +116,17 @@ beta_diversity <- function(abund_table, OTU_taxonomy, meta_table, OTU_tree) {
     df_ell$Groups<-factor(df_ell$Groups,levels=levels(PCOA$Groups))
     df_ell$Type2<-factor(df_ell$Type2,levels=levels(PCOA$Type2))
 
+    if (is.null(df_ord)) {
+      df_ord <- df_ell
+    } else {
+      df_ord <- rbind(df_ord, df_ell)
+    }
+
     #Generate mean values from PCOA plot grouped on
     PCOA.mean=aggregate(PCOA[,1:2],list(group=PCOA$Groups),mean)
 
     #Connecting samples based on lines with meta_table$Connections and meta_table$Subconnections ###########
-    PCOA_lines<-NULL
+    # PCOA_lines<-NULL
 
     #Check if meta_table$Subconnections exists
     if(!is.null(meta_table$Subconnections)){
@@ -146,14 +187,13 @@ beta_diversity <- function(abund_table, OTU_taxonomy, meta_table, OTU_tree) {
       }
     }
     #/#Connecting samples based on lines with meta_table$Connections and meta_table$Subconnections ###########
-
-    return(list(PCOA, PCOA_lines, df_ell, sol))
   }
 
-  return(NULL)
+  return(list(PCOA, PCOA_lines, df_ord, mds))
 }
 
-beta_diversity_plot <- function(PCOA, PCOA_lines, df_ell, sol) {
+#' @import ggplot2
+beta_diversity_plot <- function(PCOA, PCOA_lines, df_ell, mds) {
   #coloring function
   gg_color_hue<-function(n){
     hues=seq(15,375,length=n+1)
@@ -162,7 +202,10 @@ beta_diversity_plot <- function(PCOA, PCOA_lines, df_ell, sol) {
 
   cols=gg_color_hue(length(unique(PCOA$Groups)))
 
+
   p<-ggplot(data=PCOA,aes(x,y,colour=Groups))
+  p<-p+facet_grid(~ metric, scales = "free", labeller = labeller(metric = as_labeller(metrics)))
+
   if(!"Type" %in% colnames(meta_table)){
     p<-p + geom_point(aes(PCOA$x,PCOA$y,colour=PCOA$Groups),inherit.aes=F,alpha=point_opacity,size=point_size)
   } else{
@@ -182,9 +225,9 @@ beta_diversity_plot <- function(PCOA, PCOA_lines, df_ell, sol) {
   if(draw_confidence_intervals){
     if(identical(levels(meta_table$Groups), levels(meta_table$Type2))){
       if(draw_ellipses_and_not_polygons){
-        p<-p+ geom_path(data=df_ell, aes(x=x, y=y), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
+        p<-p+ geom_path(data=df_ell, aes(x=x, y=y, group = metric), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
       } else {
-        p<-p+ geom_polygon(data=df_ell, aes(x=x, y=y,fill=Groups), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
+        p<-p+ geom_polygon(data=df_ell, aes(x=x, y=y, group = metric, fill=Groups), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
       }
     } else {
       for (q in unique(as.numeric(meta_table$Groups))){
@@ -212,9 +255,9 @@ beta_diversity_plot <- function(PCOA, PCOA_lines, df_ell, sol) {
     p<-p+geom_segment(data=PCOA_lines,inherit.aes=FALSE,aes(x=xfrom,y=yfrom,xend=xto,yend=yto),colour="grey20",size=linking_samples_line_size,alpha=linking_samples_line_opacity,linetype=linking_samples_linetype, show.legend = FALSE,arrow=arrow)
   }
 
-
-  p<-p+xlab(paste("Dim1 (",sprintf("%.4g",(sol$eig[1]/sum(sol$eig))*100),"%)",sep=""))+ylab(paste("Dim2 (",sprintf("%.4g",(sol$eig[2]/sum(sol$eig))*100),"%)",sep=""))
-
+  if (!is.null(mds)) {
+    #p<-p+xlab(paste("Dim1 (",sprintf("%.4g",(sol$eig[1]/sum(sol$eig))*100),"%)",sep=""))+ylab(paste("Dim2 (",sprintf("%.4g",(sol$eig[2]/sum(sol$eig))*100),"%)",sep=""))
+  }
   return(p)
 }
 
