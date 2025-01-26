@@ -193,72 +193,82 @@ beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, dista
 }
 
 #' @import ggplot2
-beta_diversity_plot <- function(PCOA, PCOA_lines, df_ell, mds) {
+beta_diversity_plot <- function(df, PCOA_lines, df_ord, mds) {
   #coloring function
   gg_color_hue<-function(n){
     hues=seq(15,375,length=n+1)
     hcl(h=hues,l=65,c=100)[1:n]
   }
 
-  cols=gg_color_hue(length(unique(PCOA$Groups)))
+  cols=gg_color_hue(length(unique(df$Groups)))
 
+  plots <- list()
+  for (metric in unique(df$metric)) {
+    print(metric)
+    PCOA <- df[df$metric == metric, ]
+    df_ell <- df_ord[df_ord$metric == metric, ]
 
-  p<-ggplot(data=PCOA,aes(x,y,colour=Groups))
-  p<-p+facet_grid(~ metric, scales = "free", labeller = labeller(metric = as_labeller(metrics)))
+    p <- ggplot(data = PCOA, aes(x, y, colour = Groups))
+    p<-p+facet_grid(~ metric, scales = "free", labeller = labeller(metric = as_labeller(metrics)))
 
-  if(!"Type" %in% colnames(meta_table)){
-    p<-p + geom_point(aes(PCOA$x,PCOA$y,colour=PCOA$Groups),inherit.aes=F,alpha=point_opacity,size=point_size)
-  } else{
-    p<-p + geom_point(aes(PCOA$x,PCOA$y,colour=PCOA$Groups, shape=PCOA$Type),inherit.aes=F,alpha=point_opacity,size=point_size)
-    p<-p+scale_shape("Type")
-  }
-
-  if(draw_glow){
-    p<-p + geom_point(alpha=point_glow_opacity,size = point_size+point_glow_differential,show.legend=FALSE)
-  }
-
-  p<-p+theme_bw()
-  if(draw_mean_values_text){
-    p<-p+ annotate("text",x=PCOA.mean$x,y=PCOA.mean$y,label=PCOA.mean$group,size=mean_values_text_size,colour=cols,alpha=mean_values_text_opacity,vjust=0.3)
-  }
-  if (sum(dim(df_ell))>0){
-  if(draw_confidence_intervals){
-    if(identical(levels(meta_table$Groups), levels(meta_table$Type2))){
-      if(draw_ellipses_and_not_polygons){
-        p<-p+ geom_path(data=df_ell, aes(x=x, y=y, group = metric), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
-      } else {
-        p<-p+ geom_polygon(data=df_ell, aes(x=x, y=y, group = metric, fill=Groups), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
-      }
+    if(!"Type" %in% colnames(meta_table)){
+      p<-p + geom_point(aes(PCOA$x,PCOA$y,colour=PCOA$Groups),inherit.aes=F,alpha=point_opacity,size=point_size)
     } else {
-      for (q in unique(as.numeric(meta_table$Groups))){
-        for(r in unique(as.numeric(meta_table$Type2))){
-          if(draw_ellipses_and_not_polygons){
-            p<-p+ geom_path(data=df_ell[as.numeric(df_ell$Groups)==q & as.numeric(df_ell$Type2)==r,], aes(x=x, y=y), size=linesize_ellipses_polygons, colour=cols[q],linetype=r,alpha=opacity_ellipses_polygons, show.legend = FALSE)
-          } else {
-            p<-p+ geom_polygon(data=df_ell[as.numeric(df_ell$Groups)==q & as.numeric(df_ell$Type2)==r,], aes(x=x, y=y,fill=Groups), size=linesize_ellipses_polygons, colour=cols[q],linetype=r,alpha=opacity_ellipses_polygons, show.legend = FALSE)
-          }
-          }
+      p<-p + geom_point(aes(PCOA$x,PCOA$y,colour=PCOA$Groups, shape=PCOA$Type),inherit.aes=F,alpha=point_opacity,size=point_size)
+      p<-p+scale_shape("Type")
+    }
+
+    if(draw_glow){
+      p<-p + geom_point(alpha=point_glow_opacity,size = point_size+point_glow_differential,show.legend=FALSE)
+    }
+
+    p<-p+theme_bw()
+    if(draw_mean_values_text){
+      p<-p+ annotate("text",x=PCOA.mean$x,y=PCOA.mean$y,label=PCOA.mean$group,size=mean_values_text_size,colour=cols,alpha=mean_values_text_opacity,vjust=0.3)
+    }
+    if (sum(dim(df_ell))>0){
+    if(draw_confidence_intervals){
+      if(identical(levels(meta_table$Groups), levels(meta_table$Type2))){
+        if(draw_ellipses_and_not_polygons){
+          p<-p+ geom_path(data=df_ell, aes(x=x, y=y, group = metric), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
+        } else {
+          p<-p+ geom_polygon(data=df_ell, aes(x=x, y=y, group = metric, fill=Groups), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
+        }
+      } else {
+        for (q in unique(as.numeric(meta_table$Groups))){
+          for(r in unique(as.numeric(meta_table$Type2))){
+            if(draw_ellipses_and_not_polygons){
+              p<-p+ geom_path(data=df_ell[as.numeric(df_ell$Groups)==q & as.numeric(df_ell$Type2)==r,], aes(x=x, y=y), size=linesize_ellipses_polygons, colour=cols[q],linetype=r,alpha=opacity_ellipses_polygons, show.legend = FALSE)
+            } else {
+              p<-p+ geom_polygon(data=df_ell[as.numeric(df_ell$Groups)==q & as.numeric(df_ell$Type2)==r,], aes(x=x, y=y,fill=Groups), size=linesize_ellipses_polygons, colour=cols[q],linetype=r,alpha=opacity_ellipses_polygons, show.legend = FALSE)
+            }
+            }
+        }
       }
     }
-  }
-  }
-  if(exclude_legends){
-    p<-p+guides(colour=FALSE)
-  }
-
-  #only draw lines connecting dots if the lines are available
-  if(!is.null(PCOA_lines)){
-    arrow<-NULL
-    if(should_connections_end_in_arrows){
-      arrow=arrow(length=unit(0.2,"inches"))
     }
-    p<-p+geom_segment(data=PCOA_lines,inherit.aes=FALSE,aes(x=xfrom,y=yfrom,xend=xto,yend=yto),colour="grey20",size=linking_samples_line_size,alpha=linking_samples_line_opacity,linetype=linking_samples_linetype, show.legend = FALSE,arrow=arrow)
+    if(exclude_legends){
+      p<-p+guides(colour=FALSE)
+    }
+
+    #only draw lines connecting dots if the lines are available
+    if(!is.null(PCOA_lines)){
+      arrow<-NULL
+      if(should_connections_end_in_arrows){
+        arrow=arrow(length=unit(0.2,"inches"))
+      }
+      p<-p+geom_segment(data=PCOA_lines,inherit.aes=FALSE,aes(x=xfrom,y=yfrom,xend=xto,yend=yto),colour="grey20",size=linking_samples_line_size,alpha=linking_samples_line_opacity,linetype=linking_samples_linetype, show.legend = FALSE,arrow=arrow)
+    }
+
+    # sol <- mds
+    # if (!is.null(mds)) {
+    #   p<-p+xlab(paste("Dim1 (",sprintf("%.4g",(sol$eig[1]/sum(sol$eig))*100),"%)",sep=""))+ylab(paste("Dim2 (",sprintf("%.4g",(sol$eig[2]/sum(sol$eig))*100),"%)",sep=""))
+    # }
+
+    plots <- append(plots, list(p))
   }
 
-  if (!is.null(mds)) {
-    #p<-p+xlab(paste("Dim1 (",sprintf("%.4g",(sol$eig[1]/sum(sol$eig))*100),"%)",sep=""))+ylab(paste("Dim2 (",sprintf("%.4g",(sol$eig[2]/sum(sol$eig))*100),"%)",sep=""))
-  }
-  return(p)
+  return(do.call(gridExtra::grid.arrange, c(plots, nrow = 1)))
 }
 
 beta_diversity_write <- function() {

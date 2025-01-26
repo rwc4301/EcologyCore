@@ -33,6 +33,7 @@ tree_path="/Users/reuben/test_data/data/Batch 1/tree_rooted.nwk"
 grouping_column<-"Groups"
 
 which_level="Otus" #Otus Genus Family Order Class Phylum
+taxa_rank <- which_level
 ```
 
 # Introduction
@@ -50,7 +51,7 @@ This workflow runs through a number of ecological analyses in series as follows:
 
 In combination, these analyses are intended to give a complete picture of an ecological system.
 
-```{r data, include=FALSE}
+```{r import_data, include=FALSE}
 #### Data Import ####
 
 result <- import_data(biom_path, meta_path, tree_path)
@@ -77,7 +78,7 @@ Alpha diversity measures indicate species diversity within individual samples.
 
 Group samples by flow rate.
 
-```{r hypothesis, include=TRUE}
+```{r alpha_hypothesis, include=TRUE}
 #### Hypothesis ####
 
 # Hypothesis 1
@@ -153,7 +154,7 @@ Beta diversity measures indicate differences in species composition between samp
 
 Group samples by run and compare flow conditions.
 
-```{r hypothesis, include=TRUE}
+```{r beta_hypothesis, include=TRUE}
 #### Hypothesis ####
 
 # Hypothesis 1
@@ -167,17 +168,7 @@ meta_table$Type2 <- meta_table$Type
 meta_table$Connections <- NULL
 ```
 
-```{r collate, include=FALSE}
-#Adjust abund_table to contain only those rows that got selected in the Hypothesis space
-abund_table<-abund_table[rownames(meta_table),]
-#After adjustment, get rid of OTUs that are all empty
-abund_table<-abund_table[,colSums(abund_table)>0]
-#Adjust OTU taxonomy
-taxa_table<-taxa_table[colnames(abund_table),]
-
-#### Collate Taxonomy ####
-
-abund_table <- collate_taxonomy(abund_table, taxa_table, which_level)
+```{r ref.label='collate', include=FALSE}
 ```
 
 ```{r beta_diversity, include=FALSE}
@@ -199,8 +190,8 @@ rm(result)
 ## Plots
 
 ```{r beta_plot, echo=FALSE}
-# point_size = 5
-# point_opacity = 0.8
+point_size = 5
+point_opacity = 0.8
 # number_of_rows = 1
 # use_provided_colors = FALSE
 
@@ -217,7 +208,7 @@ exclude_legends=FALSE
 
 
 plot <- beta_diversity_plot(PCOA, PCOA_lines, df_ell, sol)
-plot <- plot_theme_default(plot)
+#plot <- plot_theme_default(plot)
 
 print(plot)
 ```
