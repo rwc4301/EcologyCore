@@ -173,18 +173,17 @@ meta_table$Connections <- NULL
 
 ```{r beta_diversity, include=FALSE}
 #### Analysis ####
-which_distance<-"bray"
 kind <- "se" #sd se (sd is for drawing ellipse based on sd, se is for drawing ellipse based on standard errors)
+vars <- c("run", "week", "BED", "wet.vs.dry", "sweetening.flow")
 
-
-result <- beta_diversity(abund_table, taxa_table, meta_table, taxa_tree)
+result <- beta_diversity(abund_table, taxa_table, meta_table, taxa_tree, PERMANOVA_variables = vars)
 
 PCOA <- result[[1]]
 PCOA_lines <- result[[2]]
 df_ell <- result[[3]]
 sol <- result[[4]]
 
-rm(result)
+#rm(result)
 ```
 
 ## Plots
@@ -207,8 +206,7 @@ linetype_ellipses_polygons="solid" #blank solid dashed dotted dotdash longdash t
 exclude_legends=FALSE
 
 
-plot <- beta_diversity_plot(PCOA, PCOA_lines, df_ell, sol)
-#plot <- plot_theme_default(plot)
+plot <- beta_diversity_plot(PCOA, PCOA_lines, df_ell, sol, vars)
 
 print(plot)
 ```
@@ -229,7 +227,15 @@ Differential expression analyses changes in abundance of taxa between conditions
 
 ## Plots
 
-# Assembly Processes
+# Ecological Community Assembly
+
+Ecological communities are shaped by a blend of deterministic and stochastic processes. Deterministic processes, often referred to as niche-based, arise when differences in species’ traits or interactions determine which species can thrive in a particular environment. For example, factors like temperature or nutrient availability may favour some species over others, while competition, predation, or mutualistic partnerships can further refine which organisms succeed. Collectively, these forces are described as ‘selection’, reflecting how environmental filters and species traits work together to define community composition.
+
+By contrast, stochastic processes, often referred to as neutral, operate more like chance events. In this model, all species are considered functionally equivalent, meaning community assembly is driven entirely by random births, deaths, dispersal, extinction, and speciation. This ‘ecological drift’ can be particularly influential when populations are small or selection is weak, leading to sometimes unpredictable shifts in which species persist.
+
+Real communities seldom fall neatly into purely deterministic or purely stochastic categories. Instead, they emerge through a dynamic interplay of these forces, alongside diversification (the generation of new genetic variation) and dispersal (movement and establishment across locations). Another important concept is historical contingency, whereby past events create legacies that shape present communities. A key example is the ‘priority effect’, in which early-arriving species either hinder or help newcomers through resource use or environmental modifications. 
+
+Understanding how all these factors interact remains a central challenge in ecology. In particular, wildly different processes can produce similar patterns, making interpretation of results challenging.
 
 Measures of community assembly processes capture the ecological mechanisms which shape community composition.
 

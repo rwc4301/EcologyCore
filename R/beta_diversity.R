@@ -54,7 +54,7 @@ beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, dista
 
     dist <- phyloseq::distance(physeq, d)
     sol <- cmdscale(dist, eig = TRUE)
-    aov <- vegan::adonis(as.formula(paste("dist ~",paste(PERMANOVA_variables,collapse="+"))), data=meta_table[rownames(otu_table(physeq)),])
+    aov <- vegan::adonis(as.formula(paste("dist ~", paste(PERMANOVA_variables, collapse = "+"))), data = meta_table[rownames(phyloseq::otu_table(physeq)), ])
 
     if (!is.null(sol)) {
       sol <- append(sol, list(metric = d))
@@ -121,7 +121,6 @@ beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, dista
     } else {
       df_ord <- rbind(df_ord, df_ell)
     }
-    colnames(df_ord[5]) <- "metric"    #weird bug here
 
     #Generate mean values from PCOA plot grouped on
     PCOA.mean=aggregate(PCOA[,1:2],list(group=PCOA$Groups),mean)
@@ -193,11 +192,13 @@ beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, dista
   # dist<-phyloseq::distance(physeq,which_distance)
   # capture.output(adonis(as.formula(paste("dist ~",paste(PERMANOVA_variables,collapse="+"))), data=meta_table[rownames(otu_table(physeq)),]),file=paste("ADONIS_",which_distance,"_",which_level,"_",label,".txt",sep=""))
 
+  colnames(df_ord)[5] <- "metric"    #weird bug here
+
   return(list(PCOA, PCOA_lines, df_ord, mds))
 }
 
 #' @import ggplot2
-beta_diversity_plot <- function(df, PCOA_lines, df_ord, mds) {
+beta_diversity_plot <- function(df, PCOA_lines, df_ord, mds, PERMANOVA_variables) {
   #coloring function
   gg_color_hue<-function(n){
     hues=seq(15,375,length=n+1)
@@ -211,13 +212,15 @@ beta_diversity_plot <- function(df, PCOA_lines, df_ord, mds) {
     PCOA <- df[df$metric == metric, ]
     df_ell <- df_ord[df_ord$metric == metric, ]
 
+
+
     p <- ggplot(data = PCOA, aes(x, y, colour = Groups))
     p<-p+facet_grid(~ metric, scales = "free", labeller = labeller(metric = as_labeller(metrics)))
 
     if(!"Type" %in% colnames(meta_table)){
-      p<-p + geom_point(aes(PCOA$x,PCOA$y,colour=PCOA$Groups),inherit.aes=F,alpha=point_opacity,size=point_size)
+      p<-p + geom_point(aes(x, y, colour = Groups),inherit.aes=F,alpha=point_opacity,size=point_size)
     } else {
-      p<-p + geom_point(aes(PCOA$x,PCOA$y,colour=PCOA$Groups, shape=PCOA$Type),inherit.aes=F,alpha=point_opacity,size=point_size)
+      p<-p + geom_point(aes(x, y, colour = Groups, shape = Type),inherit.aes=F,alpha=point_opacity,size=point_size)
       p<-p+scale_shape("Type")
     }
 
@@ -273,8 +276,8 @@ beta_diversity_plot <- function(df, PCOA_lines, df_ord, mds) {
     }
 
     # Display the PERMANOVA stats: pipe aov table to a string and display in a text grob
-    str <- paste(capture.output(sol$aov$aov.tab[, c("R2", "Pr(>F)")]), collapse = "\n")
-    text <- grid::textGrob(str, gp = gpar(fontsize = 12, fontfamily = "mono"))
+    str <- paste(capture.output(sol$aov$aov.tab[PERMANOVA_variables, c("R2", "Pr(>F)")]), collapse = "\n")
+    text <- grid::textGrob(paste("PERMANOVA", str, sep = "\n"), gp = grid::gpar(fontsize = 12, fontfamily = "mono"))
 
     plots <- append(plots, list(p, text))
   }
@@ -282,7 +285,13 @@ beta_diversity_plot <- function(df, PCOA_lines, df_ord, mds) {
   # Layout matrix set column-wise to display text grobs underneath plots
   layout_matrix <- matrix(seq_len(length(plots)), nrow = 2, byrow = FALSE)
 
-  return(do.call(gridExtra::grid.arrange, c(plots, list(layout_matrix = layout_matrix, heights = c(2, 1)))))
+  obj <- do.call(gridExtra::grid.arrange, c(plots, list(layout_matrix = layout_matrix, heights = c(2, 1))))
+
+  structure(list(gtable = obj), class = "BetaDiversityPlot")
+}
+
+print.BetaDiversityPlot <- function(x) {
+  grid::grid.draw(x$gtable)
 }
 
 beta_diversity_write <- function() {
