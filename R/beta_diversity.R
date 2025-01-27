@@ -8,7 +8,7 @@
 
 metrics = c("bray" = "Bray-Curtis", "unifrac" = "Unweighted UniFrac", "wunifrac" = "Weighted UniFrac")
 
-beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, distance_metrics = c("bray", "unifrac", "wunifrac"), taxa_rank = "Otus") {
+beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, distance_metrics = c("bray", "unifrac", "wunifrac"), taxa_rank = "Otus", PERMANOVA_variables) {
 # beta_diversity <- function(physeq) {
   # TODO: remove
   grouping_column <- "Groups"
@@ -40,25 +40,25 @@ beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, dista
     meta_table$Type2 <- meta_table$Groups
   }
 
-  if (taxa_rank != "Otus") {
-    warning("Taxa rank set higher than species; UniFrac distances only support otus.")
-  }
-
   mds <- list()
   for (d in distance_metrics) {
-    sol <- NULL
-    if (d == "bray") {
-      sol <- cmdscale(phyloseq::distance(physeq, "bray"), eig = TRUE)
-    } else if (d == "unifrac" && taxa_rank == "Otus") {
-      sol <- cmdscale(phyloseq::distance(physeq, "unifrac"), eig = TRUE)
-    } else if (d == "wunifrac" && taxa_rank == "Otus") {
-      sol <- cmdscale(phyloseq::distance(physeq, "wunifrac"), eig = TRUE)
-    } else {
-      warning("Unsupported distance metric, options are: 'bray', 'unifrac', or 'wunifrac'.")
+    # Check we've been given a supported distance metric and error if not
+    if (!(d %in% names(metrics))) {
+      warning(sprintf("Unknown distance metric %s, passing over.", d))
+      next
     }
+    if (taxa_rank != "Otus" && d != "bray") {
+      warning(sprintf("Unsupported taxa rank %s used with distance metric %s, passing over.", taxa_rank, d))
+      next
+    }
+
+    dist <- phyloseq::distance(physeq, d)
+    sol <- cmdscale(dist, eig = TRUE)
+    aov <- vegan::adonis(as.formula(paste("dist ~",paste(PERMANOVA_variables,collapse="+"))), data=meta_table[rownames(otu_table(physeq)),])
 
     if (!is.null(sol)) {
       sol <- append(sol, list(metric = d))
+      sol <- append(sol, list(aov = aov))
       mds <- append(mds, list(sol))
     }
   }
@@ -121,6 +121,7 @@ beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, dista
     } else {
       df_ord <- rbind(df_ord, df_ell)
     }
+    colnames(df_ord[5]) <- "metric"    #weird bug here
 
     #Generate mean values from PCOA plot grouped on
     PCOA.mean=aggregate(PCOA[,1:2],list(group=PCOA$Groups),mean)
@@ -189,6 +190,9 @@ beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, dista
     #/#Connecting samples based on lines with meta_table$Connections and meta_table$Subconnections ###########
   }
 
+  # dist<-phyloseq::distance(physeq,which_distance)
+  # capture.output(adonis(as.formula(paste("dist ~",paste(PERMANOVA_variables,collapse="+"))), data=meta_table[rownames(otu_table(physeq)),]),file=paste("ADONIS_",which_distance,"_",which_level,"_",label,".txt",sep=""))
+
   return(list(PCOA, PCOA_lines, df_ord, mds))
 }
 
@@ -204,7 +208,6 @@ beta_diversity_plot <- function(df, PCOA_lines, df_ord, mds) {
 
   plots <- list()
   for (metric in unique(df$metric)) {
-    print(metric)
     PCOA <- df[df$metric == metric, ]
     df_ell <- df_ord[df_ord$metric == metric, ]
 
@@ -222,7 +225,9 @@ beta_diversity_plot <- function(df, PCOA_lines, df_ord, mds) {
       p<-p + geom_point(alpha=point_glow_opacity,size = point_size+point_glow_differential,show.legend=FALSE)
     }
 
-    p<-p+theme_bw()
+    p <- plot_theme_default(p)
+
+
     if(draw_mean_values_text){
       p<-p+ annotate("text",x=PCOA.mean$x,y=PCOA.mean$y,label=PCOA.mean$group,size=mean_values_text_size,colour=cols,alpha=mean_values_text_opacity,vjust=0.3)
     }
@@ -260,15 +265,24 @@ beta_diversity_plot <- function(df, PCOA_lines, df_ord, mds) {
       p<-p+geom_segment(data=PCOA_lines,inherit.aes=FALSE,aes(x=xfrom,y=yfrom,xend=xto,yend=yto),colour="grey20",size=linking_samples_line_size,alpha=linking_samples_line_opacity,linetype=linking_samples_linetype, show.legend = FALSE,arrow=arrow)
     }
 
-    # sol <- mds
-    # if (!is.null(mds)) {
-    #   p<-p+xlab(paste("Dim1 (",sprintf("%.4g",(sol$eig[1]/sum(sol$eig))*100),"%)",sep=""))+ylab(paste("Dim2 (",sprintf("%.4g",(sol$eig[2]/sum(sol$eig))*100),"%)",sep=""))
-    # }
+    sol <- mds[[which(sapply(mds, function(x) x$metric == metric))]]
+    if (!is.null(sol)) {
+      p <- p +
+        xlab(sprintf("Dim 1 (%.4g%%)", sol$eig[1] / sum(sol$eig) * 100)) +
+        ylab(sprintf("Dim 2 (%.4g%%)", sol$eig[2] / sum(sol$eig) * 100))
+    }
 
-    plots <- append(plots, list(p))
+    # Display the PERMANOVA stats: pipe aov table to a string and display in a text grob
+    str <- paste(capture.output(sol$aov$aov.tab[, c("R2", "Pr(>F)")]), collapse = "\n")
+    text <- grid::textGrob(str, gp = gpar(fontsize = 12, fontfamily = "mono"))
+
+    plots <- append(plots, list(p, text))
   }
 
-  return(do.call(gridExtra::grid.arrange, c(plots, nrow = 1)))
+  # Layout matrix set column-wise to display text grobs underneath plots
+  layout_matrix <- matrix(seq_len(length(plots)), nrow = 2, byrow = FALSE)
+
+  return(do.call(gridExtra::grid.arrange, c(plots, list(layout_matrix = layout_matrix, heights = c(2, 1)))))
 }
 
 beta_diversity_write <- function() {
