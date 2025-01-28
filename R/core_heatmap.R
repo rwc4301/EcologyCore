@@ -10,15 +10,12 @@
 # library(RColorBrewer)
 # library(cowplot)
 
-core_microbiome <- function(physeq) {
-  # TODO: remove
-  grouping_column <- "Groups"
-
+core_microbiome <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree, what_detection = "relative", minimum_prevalence = 0.85, short_names = FALSE) {
   # Process input data
-  abund_table <- phyloseq::otu_table(physeq)
-  meta_table <- phyloseq::sample_data(physeq)
-  OTU_taxonomy <- phyloseq::tax_table(physeq)
-  OTU_tree <- phyloseq::phy_tree(physeq)
+  # abund_table <- phyloseq::otu_table(physeq)
+  # meta_table <- phyloseq::sample_data(physeq)
+  # OTU_taxonomy <- phyloseq::tax_table(physeq)
+  # OTU_tree <- phyloseq::phy_tree(physeq)
 
   #Convert the data to phyloseq format
   OTU = otu_table(as.matrix(abund_table), taxa_are_rows = FALSE)
@@ -50,25 +47,26 @@ core_microbiome <- function(physeq) {
 
   } else if(what_detection=="absolute"){
     #Detection with Absolute Count
-    detections <- 10^seq(log10(1), log10(max(abundances(pseq.2))/10), length = 20)
+    detections <- 10^seq(log10(1), log10(max(microbiome::abundances(pseq.2))/10), length = 20)
     detections <- round(detections)
     pseq_to_plot<-pseq.2
   }
 
+  datacore <- microbiome::plot_core(
+    pseq_to_plot,
+    plot.type = "heatmap",
+    prevalences = prevalences,
+    detections = detections,
+    # colours = gray(seq(1,0,length=20)),
+    colours = rev(RColorBrewer::brewer.pal(5, "Spectral")),
+    min.prevalence = minimum_prevalence,
+    horizontal = TRUE
+  )
 
+  # get the data used for plotting
+  df <- datacore$data
 
-  datacore <- plot_core(pseq_to_plot, plot.type = "heatmap",
-                           prevalences = prevalences,
-                           detections = detections,
-                           #colours = gray(seq(1,0,length=20)),
-                           colours=rev(brewer.pal(5, "Spectral")),
-                            min.prevalence = minimum_prevalence, horizontal = TRUE)
-
-  if(which_level=="Otus"){
-    # get the data used for plotting
-    df <- datacore$data
-
-
+  if(which_level=="Otus") {
     # get the list of OTUs
     list <- df$Taxa
 
@@ -94,11 +92,36 @@ core_microbiome <- function(physeq) {
     df$Taxa<-factor(df$Taxa,levels=as.character(sapply(levels(list),function(x){unique(df$Taxa)[grep(paste(x,";",sep=""),unique(df$Taxa))]})))
 
 
-    # replace the data in the plot object
-    datacore$data <- df
+
   } else {
-    datacore$data<-datacore$data[datacore$data$Taxa!="__Unknowns__",]
+    df <- datacore$data[datacore$data$Taxa!="__Unknowns__",]
   }
+
+  # Function to shorten taxa names
+  shorten_levels <- sapply(levels(df$Taxa), function(x) {
+    # Split each level at the ';' and retain only the last element, unless that is non-descriptive in which case take a longer name
+    elements <- strsplit(x, ";")[[1]]
+    if (grepl("uncultured", x) | grepl("Subgroup", x)) {
+      #return(paste(tail(elements, n = 2), sep = ";"))
+      paste(elements[length(elements) - 1], elements[length(elements)], sep = ";")
+    } else {
+      tail(elements, n = 1)
+    }
+  })
+
+  if (short_names) {
+    levels(df$Taxa) <- shorten_levels
+  }
+
+  # Add a group dummy column for facet title
+  if (length(unique(meta_table$Groups)) == 1) {
+    df$.group. <- meta_table$Groups[1]
+  }
+
+  # replace the data in the plot object
+  datacore$data <- df
+
+  datacore <- datacore + ggplot2::facet_wrap(~ .group.)
 
   return(datacore)
 }

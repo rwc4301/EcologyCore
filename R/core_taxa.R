@@ -7,15 +7,15 @@
 # library(ape)
 # library(grid)
 
-taxa_bars_analysis <- function(physeq) {
+core_taxa <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree, N = 25) {
   # TODO: remove
   grouping_column <- "Groups"
 
   # Process input data
-  abund_table <- phyloseq::otu_table(physeq)
-  meta_table <- phyloseq::sample_data(physeq)
-  OTU_taxonomy <- phyloseq::tax_table(physeq)
-  OTU_tree <- phyloseq::phy_tree(physeq)
+  # abund_table <- phyloseq::otu_table(physeq)
+  # meta_table <- phyloseq::sample_data(physeq)
+  # OTU_taxonomy <- phyloseq::tax_table(physeq)
+  # OTU_tree <- phyloseq::phy_tree(physeq)
 
   #Apply proportion normalisation
   x<-abund_table/rowSums(abund_table)
@@ -54,13 +54,24 @@ taxa_bars_analysis <- function(physeq) {
   #The first step to get levels is to find all the possible values in a given column in df$sample by outputing the following command on terminal:
   # cat(paste("levels=c(",paste(paste("\"",unique(as.character(df$Sample)),"\"",sep=""),collapse=","),")",sep=""))
   # then use df$Sample<-factor(as.character(df$Sample),levels=c()) list
+
+  return(df)
 }
 
-taxa_bars_plot <- function(df) {
+plot_core_taxa <- function(df, N = 25, switch_strip = "x", legend_columns = 1) {
+  reveal_sample_names=TRUE
+  legend_text_size=20
+  axis_title_size=30
+  text_size=30
+  axis_text_size=30
+  strip_text_size=30
+  height_image=25
+  width_image=60
+
   p <- ggplot(df, aes(Sample, Value, fill = Taxa)) +
     geom_bar(stat = "identity") +
     facet_grid(. ~ Groups, drop = TRUE, scale = "free", space = "free_x", switch = switch_strip) +
-    scale_fill_manual(values = colours[1:(N+1)], guide = guide_legend(ncol = how_many_columns_for_legend)) +
+    scale_fill_manual(values = colours[1:(N+1)], guide = guide_legend(ncol = legend_columns)) +
     ylab("Proportions") +
     scale_y_continuous(expand = c(0.02, 0)) +
     theme(
