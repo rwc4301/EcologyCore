@@ -8,15 +8,19 @@
 # library(DESeq2)
 # library(stringr)
 
-differential_expression_analysis <- function(physeq) {
+differential_expression_analysis <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree) {
+  which_level<-"Genus" #Phylum Class Order Family Genus Otus
+  sig = 0.05
+  fold = 2
+
   # TODO: remove
   grouping_column <- "Groups"
 
   # Process input data
-  abund_table <- phyloseq::otu_table(physeq)
-  meta_table <- phyloseq::sample_data(physeq)
-  OTU_taxonomy <- phyloseq::tax_table(physeq)
-  OTU_tree <- phyloseq::phy_tree(physeq)
+  # abund_table <- phyloseq::otu_table(physeq)
+  # meta_table <- phyloseq::sample_data(physeq)
+  # OTU_taxonomy <- phyloseq::tax_table(physeq)
+  # OTU_tree <- phyloseq::phy_tree(physeq)
 
   #We will convert our table to DESeqDataSet object
   countData = round(as(abund_table, "matrix"), digits = 0)
@@ -50,22 +54,8 @@ differential_expression_analysis <- function(physeq) {
   ### MA plot
   res_tax$Significant <- ifelse(rownames(res_tax) %in% rownames(res_tax_sig) , "Yes", "No")
   res_tax$Significant[is.na(res_tax$Significant)] <- "No"
-  p1 <- ggplot(data = res_tax, aes(x = baseMean, y = log2FoldChange, color = Significant)) +
-    geom_point(size = plot.point.size) +
-    scale_x_log10() +
-    scale_color_manual(values=c("black", "red")) +
-    labs(x = "Mean abundance", y = "Log2 fold change")+theme_bw()
-  if(label == T){
-    if (!is.null(tax.display)){
-      rlab <- data.frame(res_tax, Display = apply(res_tax[,c(tax.display, tax.aggregate)], 1, paste, collapse="; "))
-    } else {
-      rlab <- data.frame(res_tax, Display = res_tax[,tax.aggregate])
-    }
-    p1 <- p1 + geom_text(data = subset(rlab, Significant == "Yes"), aes(label = Display), size = 4, vjust = 1)
-  }
-  pdf(paste("NB_MA_",which_level,"_",labels,".pdf",sep=""))
-  print(p1)
-  dev.off()
+
+
 
   res_tax_sig_abund = cbind(as.data.frame(countData[rownames(res_tax_sig), ]), OTU = rownames(res_tax_sig), padj = res_tax[rownames(res_tax_sig),"padj"])
 
@@ -89,9 +79,33 @@ differential_expression_analysis <- function(physeq) {
   }
   colnames(df)<-c("Value","Groups","Taxa")
 
+  return(list(res_tax, df))
+}
+
+ma_plot_differential_expression <- function(res_tax) {
+  p1 <- ggplot(data = res_tax, aes(x = baseMean, y = log2FoldChange, color = Significant)) +
+    geom_point(size = plot.point.size) +
+    scale_x_log10() +
+    scale_color_manual(values=c("black", "red")) +
+    labs(x = "Mean abundance", y = "Log2 fold change")+theme_bw()
+  if(label == T){
+    if (!is.null(tax.display)){
+      rlab <- data.frame(res_tax, Display = apply(res_tax[,c(tax.display, tax.aggregate)], 1, paste, collapse="; "))
+    } else {
+      rlab <- data.frame(res_tax, Display = res_tax[,tax.aggregate])
+    }
+    p1 <- p1 + geom_text(data = subset(rlab, Significant == "Yes"), aes(label = Display), size = 4, vjust = 1)
+  }
+
+  return(p1)
+  # pdf(paste("NB_MA_",which_level,"_",labels,".pdf",sep=""))
+  # print(p1)
+  # dev.off()
 }
 
 plot_differential_expression <- function(df) {
+  height_image=15
+
   p <- ggplot(df, aes(Groups, Value, colour = Groups)) +
     geom_boxplot(outlier.size = 0) +
     geom_jitter(position = position_jitter(height = 0, width=0),alpha=0.5,outlier.colour = NULL) +

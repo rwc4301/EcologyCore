@@ -266,9 +266,44 @@ print(plot)
 
 Differential expression analyses changes in abundance of taxa between conditions.
 
-## Hypothesis Setting
+```{r de_hypothesis, include=TRUE}
+#### Hypothesis ####
+
+# Hypothesis 1
+label="Abstraction_Method"
+
+meta_table$Groups <- as.factor(as.character(paste("Run ", meta_table$run)))
+
+meta_table$Type <- NULL
+meta_table$Type2 <- NULL
+meta_table$Connections <- NULL
+```
+
+```{r ref.label='collate', include=FALSE}
+```
+
+```{r de_analysis, echo=FALSE}
+# Loop through and create a core plot for each unique group
+plots <- list()
+for (group in unique(meta_table$Groups)) {
+  meta_sub <- meta_table[meta_table$Groups == group,]
+  
+  data <- core_microbiome(abund_table, meta_sub, taxa_table, taxa_tree, what_detection = "absolute", short_names = TRUE)
+  
+  plots <- append(plots, list(data))
+}
+
+print(do.call(gridExtra::grid.arrange, plots))
+```
 
 ## Plots
+
+```{r de_plot, echo=FALSE}
+data <- core_taxa(abund_table, meta_table, taxa_table, taxa_tree)
+plot <- plot_core_taxa(data)
+
+print(plot)
+```
 
 # Ecological Community Assembly
 
