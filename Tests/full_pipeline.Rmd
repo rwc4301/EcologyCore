@@ -322,9 +322,33 @@ Measures of community assembly processes capture the ecological mechanisms which
 - NST
 - QPE
 
-## Hypothesis Setting
+## Net Relatedness Index (NRI)
 
-## Plots
+## Nearest Taxon Index (NTI)
+
+## Normalised Stochasticity Ratio (NST)
+
+```{r nst_hypothesis, include=TRUE}
+#### Hypothesis ####
+
+# Hypothesis 1
+label="By_Run"
+
+meta_table$Groups <- as.factor(as.character(paste("Run ", meta_table$run)))
+```
+
+```{r ref.label='collate', include=FALSE}
+```
+
+```{r nst_analysis, echo=FALSE}
+df <- nst(abund_table, meta_table, taxa_table, taxa_tree)
+
+p <- plot_nst(df)
+
+print(p)
+```
+
+## Quantitative Process Estimate (QPE)
 
 # Subset Regression
 
