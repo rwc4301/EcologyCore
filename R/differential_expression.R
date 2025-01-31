@@ -8,19 +8,18 @@
 # library(DESeq2)
 # library(stringr)
 
-differential_expression_analysis <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree) {
+# The 'design' argument should be set to a formula https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/formula
+# By default, just regress against the Groups column, but you may want to include batch here too if accounting for batch effects
+# https://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.html
+de_create <- function(abund_table, meta_table, OTU_taxonomy, design = as.formula("~ Groups")) {
   which_level<-"Genus" #Phylum Class Order Family Genus Otus
   sig = 0.05
   fold = 2
-
-  # TODO: remove
-  grouping_column <- "Groups"
 
   # Process input data
   # abund_table <- phyloseq::otu_table(physeq)
   # meta_table <- phyloseq::sample_data(physeq)
   # OTU_taxonomy <- phyloseq::tax_table(physeq)
-  # OTU_tree <- phyloseq::phy_tree(physeq)
 
   #We will convert our table to DESeqDataSet object
   countData = round(as(abund_table, "matrix"), digits = 0)
@@ -30,16 +29,31 @@ differential_expression_analysis <- function(abund_table, meta_table, OTU_taxono
   # every gene contains at least one zero, cannot compute log geometric means
   countData<-(t(countData+1))
 
-  dds <- DESeqDataSetFromMatrix(countData, meta_table, as.formula(~ Groups))
+  dds <- DESeq2::DESeqDataSetFromMatrix(countData, meta_table, design)
 
   #Reference:https://github.com/MadsAlbertsen/ampvis/blob/master/R/amp_test_species.R
   #Differential expression analysis based on the Negative Binomial (a.k.a. Gamma-Poisson) distribution
-  #Some reason this doesn't work: data_deseq_test = DESeq(dds, test="wald", fitType="parametric")
-  data_deseq_test = DESeq(dds)
+  #Some reason this doesn't work: dds = DESeq(dds, test="wald", fitType="parametric")
+  dds = DESeq2::DESeq(dds)
 
+  res_names <- DESeq2::resultsNames(dds)
+
+  return(list(res_names, dds))
+}
+
+de_summarise_results <- function(dds, name = NULL) {
+  res = DESeq2::results(dds, cooksCutoff = FALSE, name = name)
+  return(summary(res))
+}
+
+de_get_results <- function(dds, name = NULL) {
   ## Extract the results
-  res = results(data_deseq_test, cooksCutoff = FALSE)
+  res = DESeq2::results(dds, cooksCutoff = FALSE, name = name)
   res_tax = cbind(as.data.frame(res), as.matrix(countData[rownames(res), ]), OTU = rownames(res))
+
+  # https://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#log-fold-change-shrinkage-for-visualization-and-ranking
+  # or to shrink log fold changes association with condition:
+  # res <- DESeq2::lfcShrink(dds, coef="condition_trt_vs_untrt", type="apeglm") # type = apeglm | ashr | normal
 
   plot.point.size = 2
   label=F
@@ -83,6 +97,11 @@ differential_expression_analysis <- function(abund_table, meta_table, OTU_taxono
 }
 
 ma_plot_differential_expression <- function(res_tax) {
+  plot.point.size = 2
+  label=F
+  tax.display = NULL
+  tax.aggregate = "OTU"
+
   p1 <- ggplot(data = res_tax, aes(x = baseMean, y = log2FoldChange, color = Significant)) +
     geom_point(size = plot.point.size) +
     scale_x_log10() +

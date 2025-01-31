@@ -1,7 +1,16 @@
 ---
 title: "Alpha Diversity"
-output: html_document
 date: "`r Sys.Date()`"
+runtime: shiny
+output: 
+  html_document:
+    fig_width: 16
+    fig_height: 10
+    fig_caption: true
+    number_sections: true
+    toc: false
+    toc_float:
+      collapsed: false
 ---
 
 ```{r setup, include=FALSE}
@@ -18,120 +27,90 @@ devtools::load_all("..")
 
 ```{r params, include=FALSE}
 #### Parameters ####
-
-biom_path="/Users/reuben/Dropbox/Cindy_Alison_Umer_SandDam/data/DADA2/feature_w_tax.biom"
-meta_path="/Users/reuben/Dropbox/Cindy_Alison_Umer_SandDam/data/meta_table.csv"
+biom_path="/Users/reuben/test_data/data/Batch 1/asv_even_taxon.biom"
+meta_path="/Users/reuben/test_data/data/metadata.csv"
+tree_path="/Users/reuben/test_data/data/Batch 1/tree_rooted.nwk"
 grouping_column<-"Groups"
-
-which_level="Phylum" #Otus Genus Family Order Class Phylum
 ```
 
-## Alpha Diversity
-
-This notebook uses the EcologyCore API to generate alpha diversity plots from a .biom file.
-
-```{r data, include=FALSE}
+```{r import_data, include=FALSE}
 #### Data Import ####
 
-physeq <- import_data(biom_path, meta_path)
+result <- import_data(biom_path, meta_path, tree_path)
 
-abund_table <- phyloseq::otu_table(physeq)
-OTU_taxonomy <- phyloseq::tax_table(physeq)
-meta_table <- phyloseq::sample_data(physeq)
+abund_table <- result[[1]]
+taxa_table <- result[[2]]
+meta_table <- result[[3]]
+taxa_tree <- result[[4]]
 
-# rm(result)
+rm(result)
 ```
 
-## Setting up Hypotheses
+# Alpha Diversity
 
-The hypothesis space sets up comparison groups for the analysis.
+Alpha diversity measures indicate species diversity within individual samples.
 
-All you need to do is select the metadata columns you are interested in comparing and the code groups samples by the values in these columns.
+- **Richness:** The total number of unique species (or operational taxonomic units) present in a sample, without considering their abundance.
+- **Shannon Index:** A measure of species diversity that accounts for both richness and evenness, giving higher values to communities with more evenly distributed species.
+- **Fisher’s Alpha:** A parameter from the Fisher log-series model that estimates diversity by describing the relationship between species richness and abundance, particularly useful for highly diverse communities.
+- **Pielou’s Evenness:** A measure of how evenly individuals are distributed among species in a community, ranging from 0 (uneven) to 1 (perfectly even).
+- **Simpson Index:** A measure of dominance that quantifies the probability that two randomly selected individuals belong to the same species, with lower values indicating higher diversity.
 
-Additionally, you can allocate a column to Connections if the data is paired.
-
-```{r hypothesis, include=FALSE}
+```{r alpha_hypothesis, include=TRUE}
 #### Hypothesis ####
 
 # Hypothesis 1
-label="Hypothesis1"
-meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
-meta_table$Groups<-as.factor(as.character(meta_table$Within_Dam_Sample))
-meta_table$Type<-as.factor(as.character(meta_table$Sand_Dam))
-meta_table$Type2<-as.character(meta_table$Sample_Time)
-meta_table$Type2<-factor(meta_table$Type2,levels=c("May","July"))
-meta_table$Connections<-NULL
+label="Flow"
 
+meta_table$Groups <- as.factor(as.character(paste("Flow: ", meta_table$sweetening.flow)))
+
+meta_table$Type <- meta_table$Groups
+meta_table$Type2 <- meta_table$Groups
+
+meta_table$Connections <- NULL
+```
+
+```{r collate, include=FALSE}
 #Adjust abund_table to contain only those rows that got selected in the Hypothesis space
 abund_table<-abund_table[rownames(meta_table),]
 #After adjustment, get rid of OTUs that are all empty
 abund_table<-abund_table[,colSums(abund_table)>0]
 #Adjust OTU taxonomy
-OTU_taxonomy<-OTU_taxonomy[colnames(abund_table),]
+taxa_table<-taxa_table[colnames(abund_table),]
 ```
 
-## Collate Taxonomy
+```{r alpha_diversity, echo=FALSE}
+#### Run analysis for taxa rank ####
+selectInput("taxa_rank", label = "Taxa rank:", choices = taxa_ranks, selected = taxa_ranks[1])
 
-This function is included in every analysis and serves to coalesce values in the abundance table at whatever taxonomic rank you specify.
-
-```{r collate, include=FALSE}
-#### Collate Taxonomy ####
-
-abund_table <- collate_taxonomy(abund_table, OTU_taxonomy, which_level)
-```
-
-## Running the Analysis
-
-Every analysis in EcologyCore is run by calling a single function. In this case, the function is called `alpha_diversity`.
-
-```{r analyse, include=FALSE}
-#### Analysis ####
-
-dt <- alpha_diversity(abund_table, meta_table, grouping_column)
-
-# Some absolutely fucking insufferable bug causes this to fail if its run in a package
-# so fuck it I'm sticking it here instead
-pval<-data.table::as.data.table(dt)[, list(pvalue = sprintf("%.2g", tryCatch({
-   summary(stats::aov(value ~ .SD$.group.))[[1]][["Pr(>F)"]][1]
-  }, error = function(e) NULL))),
-  by = list(measure)
-]
+plot <- reactive({
+  req(input$taxa_rank)
   
-result <- alpha_diversity_2(dt, pval, meta_table, grouping_column)
+  abund_table <- collate_taxonomy(abund_table, taxa_table, input$taxa_rank)
+  dt <- alpha_diversity(abund_table, taxa_table, meta_table, taxa_tree)
+  
+  # Some absolutely fucking insufferable bug causes this to fail if its run in a package
+  # so fuck it I'm sticking it here instead
+  pval<-data.table::as.data.table(dt)[, list(pvalue = sprintf("%.2g", tryCatch({
+     summary(stats::aov(value ~ .SD$.group.))[[1]][["Pr(>F)"]][1]
+    }, error = function(e) NULL))),
+    by = list(measure)
+  ]
+      
+  result <- alpha_diversity_2(dt, pval, meta_table, grouping_column)
+    
+  df <- result[[1]]
+  df_pw <- result[[2]]
+  
+  rm(result)
+    
+  p <- plot_alpha_diversity(df, df_pw, meta_table)
+  p <- plot_theme_default(p)
+  
+  p
+})
 
-df <- result[[1]]
-df_pw <- result[[2]]
+output$plot <- renderPlot({ plot() })
 
-rm(result)
-```
-
-## Including Plots
-
-Once the analysis is complete, a separate function call draws the plots, and these are rendered here in the notebook. 
-
-### Theming
-The `plot_theme_default` function applies a consistent style across all plots in the package with good looking defaults. Common plot features can be modified easily through the exposed arguments. This function returns a regular ggplot which can also be themed manually if required.
-
-Note: some plots use additional theming options and may override defaults here.
-
-```{r plot, echo=FALSE}
-plot <- plot_alpha_diversity(df, df_pw)
-plot <- plot_theme_default(plot)
-
-print(plot)
-```
-
-## Saving Data
-
-It is good practice to save the data produced by the analyses in a non-destructive way. This means that someone coming back to the analysis after some time can see the output of each step, for validation and reproducibility. This also saves one running the entire analysis again in order to redraw a plot or change one final piece. This becomes particularly useful for large, complex analyses that may take hours or even days to complete.
-
-By default, we save a workspace image containing the output of each analysis step in an RData file. This provides an easy way for the user to open the data created by this software and analyse it further, independently. For users that don't use R, or that want a more portable format, we provide an option to export data in CSV format.
-
-```{r save, include=FALSE}
-height_image = 10
-width_image = 25
-
-save_plot(plot, paste("ANOVA_diversity_",which_level,"_",label,".pdf",sep=""), width_image, height_image)
-
-# save data
+plotOutput("plot")
 ```

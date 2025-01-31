@@ -33,12 +33,12 @@ import_data <- function(biom_path, meta_path, tree_path = NULL, round_abund = FA
   #Uncomment if you'd like to get rid of samples below a certain library size
   abund_table<-abund_table[rowSums(abund_table)>=5000,]
   OTU_taxonomy<-as.data.frame(phyloseq::tax_table(physeq))
-  colnames(OTU_taxonomy)<-c("Kingdom","Phylum","Class","Order","Family","Genus","Otus")
+  colnames(OTU_taxonomy)<-c("Kingdom","Phylum","Class","Order","Family","Genus","Species")
 
   #Ensure that all columns of OTU_taxonomy are character and not factors
   OTU_taxonomy[] <- lapply(OTU_taxonomy, function(x) as.character(x))
   OTU_taxonomy[is.na(OTU_taxonomy)]<-""
-  OTU_taxonomy$Otus<-gsub("D_6__|s__","",OTU_taxonomy$Otus)
+  OTU_taxonomy$Species<-gsub("D_6__|s__","",OTU_taxonomy$Species)
   OTU_taxonomy$Genus<-gsub("D_5__|g__","",OTU_taxonomy$Genus)
   OTU_taxonomy$Family<-gsub("D_4__|f__","",OTU_taxonomy$Family)
   OTU_taxonomy$Order<-gsub("D_3__|o__","",OTU_taxonomy$Order)

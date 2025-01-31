@@ -146,7 +146,15 @@ alpha_diversity_2 <- function(dt, pval, meta_table, grouping_column) {
 #### Plotting Function ####
 
 #' @import ggplot2
-plot_alpha_diversity <- function(df, df_pw) {
+plot_alpha_diversity <- function(df, df_pw, meta_table) {
+  point_size = 5
+  point_opacity = 0.8
+  number_of_rows = 1
+  use_provided_colors = FALSE
+  pairwise_text_size = 7
+  exclude_pvalues_text_from_drawing = FALSE
+  grouping_column = "Groups"
+
   p<-NULL
   if(!"Type" %in% colnames(meta_table)){
     if(!"Type2" %in% colnames(meta_table)){

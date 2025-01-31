@@ -6,9 +6,7 @@
 # library(stringr)
 # library(grid)
 
-metrics = c("bray" = "Bray-Curtis", "unifrac" = "Unweighted UniFrac", "wunifrac" = "Weighted UniFrac")
-
-beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, distance_metrics = c("bray", "unifrac", "wunifrac"), taxa_rank = "Otus", PERMANOVA_variables) {
+beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, distance_metrics = c("bray", "unifrac", "wunifrac"), taxa_rank = "Species", PERMANOVA_variables, kind = "se") {
 # beta_diversity <- function(physeq) {
   # TODO: remove
   grouping_column <- "Groups"
@@ -23,12 +21,16 @@ beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, dista
   }
 
   #Convert the data to phyloseq format
-  OTU = phyloseq::otu_table(as.matrix(abund_table), taxa_are_rows = FALSE)
+  OTU = phyloseq::otu_table(as.matrix(abund_table), taxa_are_rows = TRUE)
   TAX = phyloseq::tax_table(as.matrix(taxa_table))
   SAM = phyloseq::sample_data(meta_table)
 
-  physeq<-NULL
-  if(which_level=="Otus"){
+  if (!identical(rownames(TAX), colnames(OTU))) {
+    stop("Taxa names are not equal between taxa and abundance tables.")
+  }
+
+  physeq <- NULL
+  if (taxa_rank == "Species") {
     #physeq<-merge_phyloseq(phyloseq(OTU, TAX),SAM,midpoint(taxa_tree))
     physeq<-phyloseq::merge_phyloseq(phyloseq::phyloseq(OTU, TAX),SAM,taxa_tree)
   } else {
@@ -47,7 +49,7 @@ beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, dista
       warning(sprintf("Unknown distance metric %s, passing over.", d))
       next
     }
-    if (taxa_rank != "Otus" && d != "bray") {
+    if (taxa_rank != "Species" && d != "bray") {
       warning(sprintf("Unsupported taxa rank %s used with distance metric %s, passing over.", taxa_rank, d))
       next
     }
@@ -198,7 +200,23 @@ beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, dista
 }
 
 #' @import ggplot2
-beta_diversity_plot <- function(df, PCOA_lines, df_ord, mds, PERMANOVA_variables) {
+beta_diversity_plot <- function(df, PCOA_lines, df_ord, mds, PERMANOVA_variables, meta_table) {
+  point_size = 5
+  point_opacity = 0.8
+  # number_of_rows = 1
+  # use_provided_colors = FALSE
+
+  draw_glow=FALSE
+  draw_mean_values_text=FALSE
+  draw_confidence_intervals=TRUE
+  draw_ellipses_and_not_polygons=FALSE
+
+  opacity_ellipses_polygons=0.2
+  linesize_ellipses_polygons=0.8
+  linetype_ellipses_polygons="solid" #blank solid dashed dotted dotdash longdash twodash
+
+  exclude_legends=FALSE
+
   #coloring function
   gg_color_hue<-function(n){
     hues=seq(15,375,length=n+1)
