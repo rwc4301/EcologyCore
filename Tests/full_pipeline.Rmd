@@ -64,57 +64,6 @@ In combination, these analyses are intended to give a complete picture of an eco
 
 ```
 
-# Core Microbiome
-
-The core microbiome captures the set of microbial taxa consistently found across a given group of samples.
-
-## Abundance
-
-```{r core_hypothesis, include=TRUE}
-#### Hypothesis ####
-
-# Hypothesis 1
-label="Abstraction_Method"
-
-meta_table$Groups <- as.factor(as.character(paste("Run ", meta_table$run)))
-
-meta_table$Type <- NULL
-meta_table$Type2 <- NULL
-meta_table$Connections <- NULL
-```
-
-```{r ref.label='collate', include=FALSE}
-```
-
-```{r core_microbiome, echo=FALSE}
-# Loop through and create a core plot for each unique group
-plots <- list()
-for (group in unique(meta_table$Groups)) {
-  meta_sub <- meta_table[meta_table$Groups == group,]
-  
-  data <- core_microbiome(abund_table, meta_sub, taxa_table, taxa_tree, what_detection = "absolute", short_names = TRUE)
-  
-  plots <- append(plots, list(data))
-}
-
-print(do.call(gridExtra::grid.arrange, plots))
-```
-
-## Taxa Bars
-
-```{r core_taxa, echo=FALSE}
-data <- core_taxa(abund_table, meta_table, taxa_table, taxa_tree)
-plot <- plot_core_taxa(data)
-
-print(plot)
-```
-
-## Abundance-Occupancy Models
-
-## Hypothesis Setting
-
-## Plots
-
 ```{r differential_expression, include=FALSE, child='differential_expression.Rmd'}
 
 ```
