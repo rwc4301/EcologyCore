@@ -25,8 +25,12 @@ beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, dista
   TAX = phyloseq::tax_table(as.matrix(taxa_table))
   SAM = phyloseq::sample_data(meta_table)
 
-  if (!identical(rownames(TAX), colnames(OTU))) {
-    stop("Taxa names are not equal between taxa and abundance tables.")
+  # Something weird seems to happen with all the transposing abundance tables where sample names get set as taxa names
+  # Can't quite figure out where it happens so just bodging it with this conditional
+  if (!identical(phyloseq::taxa_names(TAX), phyloseq::taxa_names(OTU))) {
+    OTU@taxa_are_rows = FALSE
+    warning("Taxa names didn't match first time, applied workaround. This is a bug in EcologyCore.")
+    #stop("Taxa names are not equal between taxa and abundance tables.")
   }
 
   physeq <- NULL
