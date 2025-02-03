@@ -38,12 +38,12 @@ grouping_column<-"Groups"
 
 result <- import_data(biom_path, meta_path, tree_path)
 
-abund_table <- result[[1]]
-taxa_table <- result[[2]]
-meta_table <- result[[3]]
-taxa_tree <- result[[4]]
+#abund_table <- result[[1]]
+#taxa_table <- result[[2]]
+#meta_table <- result[[3]]
+#taxa_tree <- result[[4]]
 
-rm(result)
+#rm(result)
 ```
 
 # Core Microbiome
@@ -65,7 +65,13 @@ meta_table$Type2 <- NULL
 meta_table$Connections <- NULL
 ```
 
-```{r ref.label='collate', include=FALSE}
+```{r collate, include=FALSE}
+#Adjust abund_table to contain only those rows that got selected in the Hypothesis space
+abund_table<-abund_table[rownames(meta_table),]
+#After adjustment, get rid of OTUs that are all empty
+abund_table<-abund_table[,colSums(abund_table)>0]
+#Adjust OTU taxonomy
+taxa_table<-taxa_table[colnames(abund_table),]
 ```
 
 ```{r core_microbiome, echo=FALSE}

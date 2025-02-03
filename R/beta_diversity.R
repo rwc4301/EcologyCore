@@ -6,11 +6,7 @@
 # library(stringr)
 # library(grid)
 
-beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, distance_metrics = c("bray", "unifrac", "wunifrac"), taxa_rank = "Species", PERMANOVA_variables, kind = "se") {
-# beta_diversity <- function(physeq) {
-  # TODO: remove
-  grouping_column <- "Groups"
-
+beta_diversity <- function(physeq, PERMANOVA_variables, distance_metrics = c("bray", "unifrac", "wunifrac"), taxa_rank = "Species", kind = "se") {
   #Reference: http://stackoverflow.com/questions/13794419/plotting-ordiellipse-function-from-vegan-package-onto-nmds-plot-created-in-ggplo
   #Data frame df_ell contains values to show ellipses. It is calculated with function veganCovEllipse which is hidden in vegan package. This function is applied to each level of NMDS (group) and it uses also function cov.wt to calculate covariance matrix.
   veganCovEllipse<-function (cov, center = c(0, 0), scale = 1, npoints = 100)
@@ -20,31 +16,16 @@ beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, dista
     t(center + scale * t(Circle %*% chol(cov)))
   }
 
-  #Convert the data to phyloseq format
-  OTU = phyloseq::otu_table(as.matrix(abund_table), taxa_are_rows = TRUE)
-  TAX = phyloseq::tax_table(as.matrix(taxa_table))
-  SAM = phyloseq::sample_data(meta_table)
-
-  # Something weird seems to happen with all the transposing abundance tables where sample names get set as taxa names
-  # Can't quite figure out where it happens so just bodging it with this conditional
-  if (!identical(phyloseq::taxa_names(TAX), phyloseq::taxa_names(OTU))) {
-    OTU@taxa_are_rows = FALSE
-    warning("Taxa names didn't match first time, applied workaround. This is a bug in EcologyCore.")
-    #stop("Taxa names are not equal between taxa and abundance tables.")
+  if(is.null(sample_data(physeq)$Groups)) {
+    stop("Groups column not set in sample data")
   }
 
-  physeq <- NULL
-  if (taxa_rank == "Species") {
-    #physeq<-merge_phyloseq(phyloseq(OTU, TAX),SAM,midpoint(taxa_tree))
-    physeq<-phyloseq::merge_phyloseq(phyloseq::phyloseq(OTU, TAX),SAM,taxa_tree)
-  } else {
-    physeq<-phyloseq::merge_phyloseq(phyloseq::phyloseq(OTU),SAM)
+  # Check to see if the meta_table$Type2 is assigned or not
+  if(is.null(sample_data(physeq)$Type2)) {
+    sample_data(physeq)$Type2 <- sample_data(physeq)$Groups
   }
 
-  #Check to see if the meta_table$Type2 is assigned or not
-  if(is.null(meta_table$Type2)) {
-    meta_table$Type2 <- meta_table$Groups
-  }
+  meta_table <- as.data.frame(sample_data(physeq))
 
   mds <- list()
   for (d in distance_metrics) {
@@ -60,8 +41,9 @@ beta_diversity <- function(abund_table, taxa_table, meta_table, taxa_tree, dista
 
     dist <- phyloseq::distance(physeq, d)
     sol <- cmdscale(dist, eig = TRUE)
-    aov <- vegan::adonis(as.formula(paste("dist ~", paste(PERMANOVA_variables, collapse = "+"))), data = meta_table[rownames(phyloseq::otu_table(physeq)), ])
-
+    # aov <- vegan::adonis(as.formula(paste("dist ~", paste(PERMANOVA_variables, collapse = "+"))), data = meta_table[rownames(phyloseq::otu_table(physeq)), ])
+    aov <- vegan::adonis2(as.formula(paste("dist ~", paste(PERMANOVA_variables, collapse = "+"))), data = meta_table)
+print("done")
     if (!is.null(sol)) {
       sol <- append(sol, list(metric = d))
       sol <- append(sol, list(aov = aov))

@@ -30,20 +30,12 @@ devtools::load_all("..")
 biom_path="/Users/reuben/test_data/data/Batch 1/asv_even_taxon.biom"
 meta_path="/Users/reuben/test_data/data/metadata.csv"
 tree_path="/Users/reuben/test_data/data/Batch 1/tree_rooted.nwk"
-grouping_column<-"Groups"
 ```
 
 ```{r import_data, include=FALSE}
 #### Data Import ####
-
-result <- import_data(biom_path, meta_path, tree_path)
-
-abund_table <- result[[1]]
-taxa_table <- result[[2]]
-meta_table <- result[[3]]
-taxa_tree <- result[[4]]
-
-rm(result)
+library(phyloseq)
+experiment <- import_data(biom_path, meta_path, tree_path)
 ```
 
 # Beta Diversity
@@ -60,25 +52,30 @@ Group samples by run and compare flow conditions.
 #### Hypothesis ####
 
 # Hypothesis 1
-label="Flow"
+label <- "Flow"
+
+#groups <- "run"
+#type <- "sweetening.flow"
+#type2 <- "sweetening.flow"
+#connections <- NULL
+
+sample_data(experiment)$Groups <- as.factor(as.character(paste("Run ", sample_data(experiment)$run)))
+
+sample_data(experiment)$Type <- as.factor(as.character(paste("Flow: ", sample_data(experiment)$sweetening.flow)))
+sample_data(experiment)$Type2 <- as.factor(as.character(paste("Flow: ", sample_data(experiment)$sweetening.flow)))
+
+sample_data(experiment)$Connections <- NULL
 
 PERMANOVA_vars <- c("run", "week", "BED", "wet.vs.dry", "sweetening.flow")
-
-meta_table$Groups <- as.factor(as.character(paste("Run ", meta_table$run)))
-
-meta_table$Type <- as.factor(as.character(paste("Flow: ", meta_table$sweetening.flow)))
-meta_table$Type2 <- meta_table$Type
-
-meta_table$Connections <- NULL
 ```
 
 ```{r collate, include=FALSE}
 #Adjust abund_table to contain only those rows that got selected in the Hypothesis space
-abund_table<-abund_table[rownames(meta_table),]
+#abund_table<-abund_table[rownames(meta_table),]
 #After adjustment, get rid of OTUs that are all empty
-abund_table<-abund_table[,colSums(abund_table)>0]
+#abund_table<-abund_table[,colSums(abund_table)>0]
 #Adjust OTU taxonomy
-taxa_table<-taxa_table[colnames(abund_table),]
+#taxa_table<-taxa_table[colnames(abund_table),]
 ```
 
 ```{r beta_diversity, echo=FALSE}
@@ -86,8 +83,10 @@ selectInput("taxa_rank", label = "Taxa rank:", choices = taxa_ranks, selected = 
 
 plot <- reactive({
   req(input$taxa_rank)
+  
+  physeq <- collate_taxonomy_2(experiment, input$taxa_rank)
 
-  result <- beta_diversity(abund_table, taxa_table, meta_table, taxa_tree, taxa_rank = input$taxa_rank, PERMANOVA_variables = PERMANOVA_vars)
+  result <- beta_diversity(experiment, taxa_rank = input$taxa_rank, PERMANOVA_variables = PERMANOVA_vars)
   
   PCOA <- result[[1]]
   PCOA_lines <- result[[2]]
