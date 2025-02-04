@@ -86,7 +86,7 @@ plot <- reactive({
   
   physeq <- collate_taxonomy_2(experiment, input$taxa_rank)
 
-  result <- beta_diversity(experiment, taxa_rank = input$taxa_rank, PERMANOVA_variables = PERMANOVA_vars)
+  result <- beta_diversity(experiment, PERMANOVA_variables = PERMANOVA_vars, taxa_rank = input$taxa_rank)
   
   PCOA <- result[[1]]
   PCOA_lines <- result[[2]]

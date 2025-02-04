@@ -35,8 +35,8 @@ grouping_column<-"Groups"
 
 ```{r import_data, include=FALSE}
 #### Data Import ####
-
-result <- import_data(biom_path, meta_path, tree_path)
+library(phyloseq)
+experiment <- import_data(biom_path, meta_path, tree_path)
 
 #abund_table <- result[[1]]
 #taxa_table <- result[[2]]

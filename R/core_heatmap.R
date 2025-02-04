@@ -10,14 +10,12 @@
 # library(RColorBrewer)
 # library(cowplot)
 
-core_microbiome <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree, what_detection = "relative", taxa_rank = "Species", minimum_prevalence = 0.85, short_names = FALSE) {
+core_microbiome <- function(physeq, what_detection = "relative", taxa_rank = "Species", minimum_prevalence = 0.85, short_names = FALSE) {
   # Process input data
   # abund_table <- phyloseq::otu_table(physeq)
   # meta_table <- phyloseq::sample_data(physeq)
   # OTU_taxonomy <- phyloseq::tax_table(physeq)
   # OTU_tree <- phyloseq::phy_tree(physeq)
-
-  physeq <- to_phyloseq(abund_table, taxa_table, meta_table, taxa_tree, taxa_rank)
 
   # keep only taxa with positive sums
   pseq.2 <- prune_taxa(taxa_sums(physeq) > 0, physeq)
