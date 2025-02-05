@@ -1,7 +1,7 @@
 ---
-title: "Core Microbiome"
+title: "Core Taxa"
 date: "`r Sys.Date()`"
-runtime: shiny
+#runtime: shiny
 output: 
   html_document:
     fig_width: 16
@@ -36,8 +36,8 @@ grouping_column<-"Groups"
 ```{r import_data, include=FALSE}
 #### Data Import ####
 library(phyloseq)
-experiment <- import_data(biom_path, meta_path, tree_path)
-
+#experiment <- import_data(biom_path, meta_path, tree_path)
+experiment <- import_data(biom_path, meta_path)
 #abund_table <- result[[1]]
 #taxa_table <- result[[2]]
 #meta_table <- result[[3]]
@@ -50,6 +50,12 @@ experiment <- import_data(biom_path, meta_path, tree_path)
 
 The core microbiome captures the set of microbial taxa consistently found across a given group of samples.
 
+## Abundance-Occupancy Plot
+
+```{r core_ao_plot, echo=FALSE}
+p <- core_occupancy_abundance_plot(experiment)
+plot(p)
+```
 ## Abundance
 
 ```{r core_hypothesis, include=TRUE}

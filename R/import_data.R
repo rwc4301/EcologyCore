@@ -67,17 +67,40 @@ import_data <- function(biom_path, meta_path, tree_path = NULL, round_abund = FA
   # Shrink taxonomy table by only considering OTUs that appear in abund_table
   taxa_table<-taxa_table[colnames(abund_table),]
 
-  # Coerce into phyloseq objects
-  meta_table <- phyloseq::sample_data(meta_table)
-  taxa_table <- phyloseq::tax_table(as.matrix(taxa_table))
+  # Seriously weird bug here
+  if (!identical(phyloseq::taxa_names(phyloseq::otu_table(abund_table)), phyloseq::taxa_names(phyloseq::tax_table(as.matrix(taxa_table))))) {
+    abund_table@taxa_are_rows = !abund_table@taxa_are_rows
+  }
 
   # Merge the edited tables into a new phyloseq object and return
-  return (phyloseq::merge_phyloseq(phyloseq::phyloseq(abund_table, taxa_table), meta_table, taxa_tree))
+  return (phyloseq::merge_phyloseq(phyloseq::otu_table(abund_table), phyloseq::tax_table(as.matrix(taxa_table)), phyloseq::sample_data(meta_table), taxa_tree))
 }
 
 # Use to combine multiple phyloseq objects together for example when working with multiple batches
 merge_data <- function(phyloseqs) {
+  batch1 <- phyloseq::import_biom("data/Batch 1/asv_even_taxon.biom", treefilename = "data/Batch 1/tree_rooted.nwk")
+  batch2 <- phyloseq::import_biom("data/Batch 2/asv_even_taxon2.biom", treefilename = "data/Batch 2/rooted_tree2.nwk")
+  batch3 <- phyloseq::import_biom("data/Batch 3/asv_even_taxon3.biom", treefilename = "data/Batch 3/rooted_tree3.nwk")
 
+  # Unclear whether ASV nums are consistent across batches, so edit taxa names
+  b1_otu <- as.data.frame(otu_table(batch1))
+  b1_tax <- as.data.frame(tax_table(batch1))
+  b1_tree <- phy_tree(batch1)
+  b1_names <- paste(taxa_names(batch1), "1", sep = "_")
+
+  # Append batch num to taxa names
+  rownames(b1_otu) <- b1_names
+  rownames(b1_tax) <- b1_names
+  b1_tree$tip.label <- b1_names
+
+  # Check valid
+  if (intersect(rownames(b1_otu), rownames(b1_tax), b1_tree$tip.label) > 0) {
+    # Rebuild phyloseq
+    b1_otu <- otu_table(as.matrix(b1_otu), taxa_are_rows = TRUE)
+    b1_tax <- tax_table(as.matrix(b1_tax))
+
+    batch1 <- merge_phyloseq(b1_otu, b1_tax, b1_tree)
+  }
 }
 
 collate_taxonomy_2 <- function(physeq, rank = "Species") {

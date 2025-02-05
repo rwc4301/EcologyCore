@@ -6,6 +6,30 @@
 # library(plyr)
 # library(ape)
 # library(grid)
+# library(tidyverse)
+# library(reshape2)
+# library(vegan)
+# library(ggsci)
+
+# Adapted from https://github.com/ShadeLab/PAPER_Shade_CurrOpinMicro
+# input dataset needs to be rarefied and the rarefaction depth included
+core_occupancy_abundance_plot <- function(physeq, nReads=1000) {
+  otu <- as.data.frame(phyloseq::otu_table(physeq))
+  map <- as.data.frame(phyloseq::sample_data(physeq))
+
+  otu_PA <- 1*((otu>0)==1)                                               # presence-absence data
+  otu_occ <- rowSums(otu_PA)/ncol(otu_PA)                                # occupancy calculation
+  otu_rel <- apply(decostand(otu, method="total", MARGIN=2),1, mean)     # mean relative abundance
+  occ_abun <- data.frame(otu_occ=otu_occ, otu_rel=otu_rel) %>%           # combining occupancy and abundance data frame
+    rownames_to_column('otu')
+
+  # Occupancy abundance plot:
+  p <- ggplot(data=occ_abun, aes(x=log10(otu_rel), y=otu_occ)) +
+    geom_point(pch=21, fill='white') +
+    labs(x="log10(mean relative abundance)", y="Occupancy")
+
+  return (p)
+}
 
 core_taxa <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree, N = 25) {
   # TODO: remove
