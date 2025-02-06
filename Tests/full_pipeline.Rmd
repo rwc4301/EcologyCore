@@ -44,11 +44,14 @@ This workflow runs through a number of ecological analyses in series as follows:
 - **Alpha Diversity:** Richness, Shannon Index, Simpson Index, Fisher's Alpha, and Pielou's Evenness
 - **Beta Diversity:** Bray-Curtis, Unweighted UniFrac, and Weighted UniFrac
 - **Core Microbiome:** taxa bars and core heatmaps combine to show the most abundant species in each sample + the most prevalent in each group
-- **Differential Expression:** DESeq2; shows significant differences in abundance between pairs of groups
 - **Community Assembly Processes:** Normalised Stochasticity Ratio, Quantitative Process Estimate
 - **Environmental Filtering:** NRI, NTI; environmental impact on evolution of phylogeny
-- **Subset Regression:** regress metadata against diversity metrics (alpha, NRI, NTI, LCBD, etc.)
-- **Variable Selection:** Selbal, CLR LASSO, CODA LASSO; selects two groups of taxa whose balance is most associated with the response (metadata) variable
+- **Diversity Regression:** regress metadata against diversity metrics (alpha, NRI, NTI, LCBD, etc.)
+- **Compositional Regression/Variable Selection:** Selbal, CLR LASSO, CODA LASSO; selects two groups of taxa whose balance is most associated with the response (metadata) variable
+- [Add to variable selection] **Differential Expression:** DESeq2; shows significant differences in abundance between pairs of groups
+
+
+https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-023-05219-x
 
 In combination, these analyses are intended to give a complete picture of an ecological system.
 
