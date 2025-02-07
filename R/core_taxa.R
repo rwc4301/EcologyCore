@@ -13,69 +13,103 @@
 
 # Adapted from https://github.com/ShadeLab/PAPER_Shade_CurrOpinMicro
 # input dataset needs to be rarefied and the rarefaction depth included
-# nReads=1000
+#
 
 # Class Descriptions for EcologyCore Core (ECC):
 ## ECCOccupancyAbundance
 ## ECCRankedSimilarity
-core_occupancy_abundance_plot <- function(physeq) {
+
+# set threshold_model to 'elbow' to use first-order difference
+core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
+  # Add input validation
+  if (is.null(physeq)) {
+    stop("Input phyloseq object cannot be NULL")
+  }
+
   abund_table <- as.data.frame(phyloseq::otu_table(physeq))
+
+  # Ensure consistent orientation of abundance table
+  if (!phyloseq::taxa_are_rows(physeq)) {
+    abund_table <- t(abund_table)
+  }
+
+  # Add check for zero row sums before decostand
+  if (any(rowSums(abund_table) == 0)) {
+    warning("Removing samples with zero counts")
+    abund_table <- abund_table[rowSums(abund_table) > 0,]
+  }
+
+  # Add check for zero column sums
+  if (any(colSums(abund_table) == 0)) {
+    warning("Removing OTUs with zero counts")
+    abund_table <- abund_table[,colSums(abund_table) > 0]
+  }
+
+  # If a tax table is supplied we'll use to generate readable names for ASVs
+  taxa_table <- NULL
+  if (!is.null(physeq@tax_table)) {
+    taxa_table <- as.data.frame(phyloseq::tax_table(physeq))
+  }
+
   meta_table <- as.data.frame(phyloseq::sample_data(physeq))
+
+  #TODO: check SampleID column doesn't exist first
+  meta_table$SampleID <- rownames(meta_table)
 
   # TODO: clean up hypothesis testing
   label="Abstraction_Method"
-  meta_table$Groups <- as.factor(as.character(paste("Run ", meta_table$run, sep = "")))
-
+  #meta_table$Groups <- as.factor(as.character(paste("Run ", meta_table$run, sep = "")))
+  meta_table$Groups <- "Test Group"
   meta_table$Type <- NULL
   meta_table$Type2 <- NULL
   meta_table$Connections <- NULL
 
-  meta_table <- meta_table[meta_table$Groups == "Run 1",]
-  ###
+  #meta_table <- meta_table[meta_table$Groups == "Run 1",]
 
-  #Adjust abund_table to contain only those rows that got selected in the Hypothesis space
-  abund_table<-abund_table[rownames(meta_table),]
-  #After adjustment, get rid of OTUs that are all empty
-  abund_table<-abund_table[,colSums(abund_table)>0]
+  # Validate that sample names exist in abundance table
+  valid_samples <- intersect(rownames(meta_table), colnames(abund_table))
+  if (length(valid_samples) == 0) {
+    stop("No matching sample names between metadata and abundance table")
+  }
 
-  abund_table <- t(abund_table)
+  # Subset both tables to matching samples
+  meta_table <- meta_table[valid_samples,]
+  abund_table <- abund_table[, valid_samples]
 
+  # Remove empty OTUs after subsetting
+  abund_table <- abund_table[rowSums(abund_table) > 0,]
+
+  #abund_table <- t(abund_table)
+
+  # What proportion of samples does each ASV occupy
   otu_PA <- 1*((abund_table>0)==1)                                              # presence-absence data
   otu_occ <- rowSums(otu_PA)/ncol(otu_PA)                                       # occupancy calculation
-  otu_rel <- apply(decostand(abund_table, method="total", MARGIN=2),1, mean)    # mean relative abundance
+
+  # Modify the relative abundance calculation to avoid NaN
+  otu_rel <- apply(decostand(abund_table, method="total", MARGIN=2), 1, function(x) {
+    if (all(is.na(x))) return(0)
+    mean(x, na.rm = TRUE)
+  })
 
   occ_abund_table <- data.frame(otu_occ=otu_occ, otu_rel=otu_rel) %>%           # combining occupancy and abundance data frame
     rownames_to_column('otu')
 
-  # Collate response and set class name
-  res <- list(abund_table = abund_table, occ_abund_table = occ_abund_table)
-  class(res) <- "ECCOccupancyAbundance"
+  # # Collate response and set class name
+  # res <- list(abund_table = abund_table, occ_abund_table = occ_abund_table)
+  # class(res) <- "ECCOccupancyAbundance"
 
-  return (res)
-}
-
-plot.ECCOccupancyAbundance <- function(value) {
-  # Occupancy abundance plot:
-  p <- ggplot(data = value$occ_abund_table, aes(x = log10(otu_rel), y = otu_occ)) +
-    geom_point(pch = 21, fill = 'white') +
-    labs(x = "log10(mean relative abundance)", y = "Occupancy")
-
-  print(p)
-}
-
-similarity_ranked <- function(abund_table, occ_abund_table) {
   otu <- abund_table
 
   PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
-    gather(sequence_name, abun, -otu) %>%
-    left_join(map, by = 'sequence_name') %>%
-    group_by(otu, sampling_date) %>%
+    gather(SampleID, abun, -otu) %>%
+    left_join(meta_table, by = 'SampleID') %>%
+    group_by(otu, Groups) %>%   # maybe group by type instead
     summarise(time_freq=sum(abun>0)/length(abun),            # frequency of detection between time points
               coreTime=ifelse(time_freq == 1, 1, 0)) %>%     # 1 only if occupancy 1 with specific time, 0 if not
     group_by(otu) %>%
     summarise(sumF=sum(time_freq),
               sumG=sum(coreTime),
-              nS=length(sampling_date),
+              nS=length(Groups),
               Index=(sumF+sumG)/nS)                 # calculating weighting Index based on number of time points detected and
 
   otu_ranked <- occ_abund_table %>%
@@ -87,10 +121,12 @@ similarity_ranked <- function(abund_table, occ_abund_table) {
   # Calculating the contribution of ranked OTUs to the BC similarity
   BCaddition <- NULL
 
+  nReads=1000
+
   # calculating BC dissimilarity based on the 1st ranked OTU
   otu_start=otu_ranked$otu[1]
   start_matrix <- as.matrix(otu[otu_start,])
-  start_matrix <- t(start_matrix)
+  #start_matrix <- t(start_matrix)
   x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]- start_matrix[,x[2]]))/(2*nReads))
   x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
   df_s <- data.frame(x_names,x)
@@ -102,7 +138,7 @@ similarity_ranked <- function(abund_table, occ_abund_table) {
   for(i in 2:500){
     otu_add=otu_ranked$otu[i]
     add_matrix <- as.matrix(otu[otu_add,])
-    add_matrix <- t(add_matrix)
+    #add_matrix <- t(add_matrix)
     start_matrix <- rbind(start_matrix, add_matrix)
     x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads))
     x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
@@ -135,8 +171,7 @@ similarity_ranked <- function(abund_table, occ_abund_table) {
 
   #Creating thresholds for core inclusion
 
-  #Method:
-  #A) Elbow method (first order difference) (script modified from https://pommevilla.github.io/random/elbows.html)
+  # elbow method (first order difference) (script modified from https://pommevilla.github.io/random/elbows.html)
   fo_difference <- function(pos){
     left <- (BC_ranked[pos, 2] - BC_ranked[1, 2]) / pos
     right <- (BC_ranked[nrow(BC_ranked), 2] - BC_ranked[pos, 2]) / (nrow(BC_ranked) - pos)
@@ -144,38 +179,14 @@ similarity_ranked <- function(abund_table, occ_abund_table) {
   }
   BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
 
-  elbow <- which.max(BC_ranked$fo_diffs)
-
-  #B) Final increase in BC similarity of equal or greater then 2%
-  lastCall <- last(as.numeric(as.character(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)])))
-
-  # Collate response and set class name
-  res <- list(BC_ranked = BC_ranked, elbow = elbow, lastCall = lastCall, )
-  class(res) <- "ECCRankedSimilarity"
-
-  return (res)
-}
-
-plot.ECCRankedSimilarity <- function(value) {
-  BC_ranked <- value$BC_ranked
-  elbow <- value$elbow
-
-  #Creating plot of Bray-Curtis similarity
-  p <- ggplot(BC_ranked[1:100,], aes(x=factor(BC_ranked$rank[1:100], levels=BC_ranked$rank[1:100]))) +
-    geom_point(aes(y=proportionBC)) +
-    theme_classic() + theme(strip.background = element_blank(),axis.text.x = element_text(size=7, angle=45)) +
-    geom_vline(xintercept=elbow, lty=3, col='red', cex=.5) +
-    geom_vline(xintercept=lastCall, lty=3, col='blue', cex=.5) +
-    labs(x='Ranked Taxa',y='Contribution to Bray-Curtis Dissimilarity') +
-    annotate(geom="text", x=elbow+14, y=.1, label=paste("Elbow method"," (",elbow,")", sep=''), color="red")+
-    annotate(geom="text", x=lastCall+3, y=.5, label=paste("Last 2% increase (",lastCall,")",sep=''), color="blue")
-
-  print(p)
-}
-
-exercise_1 <- function() {
-  #' Exercise 1:
-  #' Create a vector with all "core" OTUs.
+  threshold <- 0
+  if (threshold_model == "elbow") {
+    # get highest first-order difference in LCBDs
+    threshold <- which.max(BC_ranked$fo_diffs)
+  } else {
+    # get last taxa where increase in explanatory value >= 2%
+    threshold <- last(as.numeric(as.character(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1 + (threshold_model / 100))])))
+  }
 
   # Use Sloan neutral model to prioritize OTUs
   # Fitting neutral model (Burns et al., 2016 (ISME J) - functions are in the sncm.fit.R)
@@ -190,49 +201,131 @@ exercise_1 <- function() {
   below.pred=sum(obs.np$freq < (obs.np$pred.lwr), na.rm=TRUE)/sta.np$Richness  # fraction of OTUs below prediction
 
   #Create a column defining "core" OTUs
-  occ_abun$fill <- 'no'
-  occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:lastCall]] <- 'core'
+  occ_abund_table$fill <- 'no'
+  occ_abund_table$fill[occ_abund_table$otu %in% otu_ranked$otu[1:threshold]] <- 'core'
 
-  p3 <- ggplot() +
-    geom_point(data=occ_abun[occ_abun$fill=='no',], aes(x=log10(otu_rel), y=otu_occ), pch=21, fill='white', alpha=.2)+
-    geom_point(data=occ_abun[occ_abun$fill!='no',], aes(x=log10(otu_rel), y=otu_occ), pch=21, fill='blue', size=1.8) +
-    geom_line(color='black', data=obs.np, size=1, aes(y=obs.np$freq.pred, x=log10(obs.np$p)), alpha=.25) +
-    geom_line(color='black', lty='twodash', size=1, data=obs.np, aes(y=obs.np$pred.upr, x=log10(obs.np$p)), alpha=.25)+
-    geom_line(color='black', lty='twodash', size=1, data=obs.np, aes(y=obs.np$pred.lwr, x=log10(obs.np$p)), alpha=.25)+
-    labs(x="log10(mean relative abundance)", y="Occupancy")
+  # Collate response and set class name
+  res <- list(
+    abund_table = abund_table,
+    taxa_table = taxa_table,
+    meta_table = meta_table,
+    occ_abund_table = occ_abund_table,
+    BC_ranked = BC_ranked,
+    threshold = threshold,
+    threshold_model = threshold_model,
+    obs.np = obs.np,
+    sta.np = sta.np,
+    above.pred = above.pred,
+    below.pred = below.pred,
+    otu_ranked = otu_ranked
+  )
+  class(res) <- "ECCOccupancyAbundance"
+
+  return (res)
 }
 
-exercise_two <- function() {
-  #' Exercise 2:
-  #' Highlight on the same occupancy-abundance plot OTUs that are above and below
-  #' the natural model prediction.
-  #' Extra: add to the plot the above.pred and below.pred values
+plot.ECCOccupancyAbundance <- function(value) {
+  # Occupancy abundance plot:
+  # p <- ggplot(data = value$occ_abund_table, aes(x = log10(otu_rel), y = otu_occ)) +
+  #   geom_point(pch = 21, fill = 'white') +
+  #   labs(x = "log10(mean relative abundance)", y = "Occupancy")
 
+  p <- ggplot() +
+    geom_point(data = value$occ_abund_table[value$occ_abund_table$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), pch=21, fill='white', alpha=0.2) +
+    geom_point(data = value$occ_abund_table[value$occ_abund_table$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), pch=21, fill='blue', size=1.8) +
+    geom_line(color='black', data= value$obs.np, size=1, aes(y= value$obs.np$freq.pred, x=log10(value$obs.np$p)), alpha=.25) +
+    geom_line(color='black', lty='twodash', size=1, data= value$obs.np, aes(y= value$obs.np$pred.upr, x=log10(value$obs.np$p)), alpha=.25)+
+    geom_line(color='black', lty='twodash', size=1, data= value$obs.np, aes(y= value$obs.np$pred.lwr, x=log10(value$obs.np$p)), alpha=.25)+
+    labs(x="log10(mean relative abundance)", y="Occupancy")
+
+  #TODO: highlight on the same occupancy-abundance plot OTUs that are above and below the neutral model prediction
+  #TODO: add to the plot the above.pred and below.pred values
+
+  print(p)
+}
+
+plot.ECCRankedSimilarity <- function(value) {
+  BC_ranked <- value$BC_ranked
+
+  #Creating plot of Bray-Curtis similarity
+  p <- ggplot(BC_ranked[1:100,], aes(x=factor(BC_ranked$rank[1:100], levels=BC_ranked$rank[1:100]))) +
+    geom_point(aes(y=proportionBC)) +
+    theme_classic() + theme(strip.background = element_blank(),axis.text.x = element_text(size=7, angle=45)) +
+    geom_vline(xintercept = value$threshold, lty=3, col='red', cex=.5) +
+    # geom_vline(xintercept=lastCall, lty=3, col='blue', cex=.5) +
+    labs(x='Ranked Taxa',y='Contribution to Bray-Curtis Dissimilarity')
+
+  if (value$threshold_model == "elbow") {
+    p <- p + annotate(geom = "text", x = value$threshold + 14, y = 0.1, label = sprintf("Elbow method (%d)", value$threshold), color = "red")
+  } else {
+    p <- p + annotate(geom = "text", x = value$threshold, y = 0.5, label = sprintf("Last %d%% increase (%d)", value$threshold_model, value$threshold), color = "blue")
+  }
+
+  print(p)
+}
+
+plot.ECCHeatmap <- function(value, what_detection = "absolute") {
+  prevalences <- seq(.05, 1, .05)
 
   #Creating a plot of core taxa occupancy by time point
-  core <- occ_abun$otu[occ_abun$fill == 'core']
+  core <- value$occ_abund_table$otu[value$occ_abund_table$fill == 'core']
+  core_otu <- value$abund_table[rownames(value$abund_table) %in% core,]
 
-  otu_relabun <- decostand(otu, method="total", MARGIN=2)
+  # # keep only taxa with positive sums
+  # pseq.2 <- prune_taxa(taxa_sums(physeq) > 0, physeq)
+  #
+  # # Calculate compositional version of the data
+  # # (relative abundances)
+  # pseq.rel <- microbiome::transform(pseq.2, "compositional")
 
-  plotDF <- data.frame(otu = as.factor(row.names(otu_relabun)), otu_relabun) %>%
-    gather(sequence_name, relabun, -otu) %>%
-    left_join(map, by = 'sequence_name') %>%
-    left_join(otu_ranked, by='otu') %>%
-    filter(otu %in% core) %>%
-    group_by(otu, sampling_date) %>%
-    summarise(time_freq=sum(relabun>0)/length(relabun),
-              coreTime=ifelse(time_freq == 1, 1, 0),
-              detect=ifelse(time_freq > 0, 1, 0))
+  detections <- NULL
+  if(what_detection=="relative"){
+    #Detection with Relative Abundances
+    detections <- 10^seq(log10(1e-3), log10(.2), length = 20)
+  } else if(what_detection=="absolute") {
+    #Detection with Absolute Count
+    detections <- 10^seq(log10(1), log10(max(microbiome::abundances(core_otu))), length = 20)
+    detections <- round(detections)
+  }
 
-  plotDF$otu <- factor(plotDF$otu, levels=otu_ranked$otu[1:34])
+  if (!is.null(value$taxa_table)) {
+    rownames(core_otu) <- expand_otu_names(rownames(core_otu), value$taxa_table)
+  }
 
-  p4 <- ggplot(plotDF,aes(x=otu, time_freq,fill=factor(sampling_date))) +
-    geom_bar(stat = 'identity', position = 'dodge') +
-    coord_flip() +
-    scale_x_discrete(limits = rev(levels(plotDF$otu))) +
-    theme(axis.text = element_text(size=6)) +
-    labs(x='Ranked OTUs', y='Occupancy by site', fill="Sampling date") +
-    scale_fill_npg()
+  p <- microbiome::plot_core(
+    core_otu,
+    prevalences = prevalences,
+    detections = detections,
+    plot.type = "heatmap",
+    colours = rev(RColorBrewer::brewer.pal(5, "Spectral")),
+    # taxa.order = value$otu_ranked$otu,
+    horizontal = TRUE,
+  )
+
+  return(p)
+
+
+  # otu_relabun <- decostand(otu, method="total", MARGIN=2)
+  #
+  # plotDF <- data.frame(otu = as.factor(row.names(otu_relabun)), otu_relabun) %>%
+  #   gather(SampleID, relabun, -otu) %>%
+  #   left_join(meta_table, by = 'SampleID') %>%
+  #   left_join(otu_ranked, by='otu') %>%
+  #   filter(otu %in% core) %>%
+  #   group_by(otu, Groups) %>%
+  #   summarise(time_freq=sum(relabun>0)/length(relabun),
+  #             coreTime=ifelse(time_freq == 1, 1, 0),
+  #             detect=ifelse(time_freq > 0, 1, 0))
+  #
+  # plotDF$otu <- factor(plotDF$otu, levels=otu_ranked$otu[1:34])
+  #
+  # p <- ggplot(plotDF,aes(x=otu, time_freq,fill=factor(Groups))) +
+  #   geom_bar(stat = 'identity', position = 'dodge') +
+  #   coord_flip() +
+  #   scale_x_discrete(limits = rev(levels(plotDF$otu))) +
+  #   theme(axis.text = element_text(size=6)) +
+  #   labs(x='Ranked OTUs', y='Occupancy by site', fill="Sampling date") +
+  #   scale_fill_npg()
 }
 
 core_taxa <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree, N = 25) {

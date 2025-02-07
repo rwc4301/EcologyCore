@@ -50,12 +50,31 @@ experiment <- import_data(biom_path, meta_path)
 
 The core microbiome captures the set of microbial taxa consistently found across a given group of samples.
 
-## Abundance-Occupancy Plot
+## Abundance-Occupancy Model
 
-```{r core_ao_plot, echo=FALSE}
-p <- core_occupancy_abundance_plot(experiment)
-plot(p)
+```{r core, include=FALSE}
+core <- core_occupancy_abundance_model(experiment)
 ```
+
+```{r core_oa_plot, echo=FALSE}
+plot.ECCOccupancyAbundance(core)
+```
+
+```{r core_rs_plot, echo=FALSE}
+plot.ECCRankedSimilarity(core)
+```
+
+These species play an active role in shaping the ecological community.
+
+```{r core_rs_plot, echo=FALSE}
+p <- plot.ECCHeatmap(core)
+
+p$data$Title <- "Test Group"
+p <- p + facet_wrap(~ Title)
+
+print(p)
+```
+
 ## Abundance
 
 ```{r core_hypothesis, include=TRUE}
