@@ -140,13 +140,16 @@ alpha_diversity_2 <- function(dt, pval, meta_table, grouping_column) {
     names(df_pw)<-c("measure","from","to","y","p")
   }
 
-  return(list(df, df_pw))
+  res <- list(df, df_pw)
+  class(res) <- "ECAlphaDiversity"
+
+  return(list(df, df_pw, meta_table))
 }
 
 #### Plotting Function ####
 
 #' @import ggplot2
-plot_alpha_diversity <- function(df, df_pw, meta_table) {
+plot.ECAlphaDiversity <- function(df, df_pw, meta_table) {
   point_size = 5
   point_opacity = 0.8
   number_of_rows = 1
