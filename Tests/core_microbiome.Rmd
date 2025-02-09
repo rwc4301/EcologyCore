@@ -27,10 +27,14 @@ devtools::load_all("..")
 
 ```{r params, include=FALSE}
 #### Parameters ####
-biom_path="/Users/reuben/test_data/data/Batch 1/asv_even_taxon.biom"
-meta_path="/Users/reuben/test_data/data/metadata.csv"
-tree_path="/Users/reuben/test_data/data/Batch 1/tree_rooted.nwk"
-grouping_column<-"Groups"
+#biom_path="/Users/reuben/test_data/data/Batch 1/asv_even_taxon.biom"
+#meta_path="/Users/reuben/test_data/data/metadata.csv"
+#tree_path="/Users/reuben/test_data/data/Batch 1/tree_rooted.nwk"
+#grouping_column<-"Groups"
+
+biom_path="DADA2/feature_w_tax.biom"
+meta_path="meta_table.csv"
+tree_path="DADA2/tree.nwk"
 ```
 
 ```{r import_data, include=FALSE}

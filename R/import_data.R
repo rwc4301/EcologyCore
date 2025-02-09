@@ -103,10 +103,27 @@ merge_data <- function(phyloseqs) {
   }
 }
 
-expand_otu_names <- function(otu_names, taxa_table) {
-  return (c(paste(otu_names, sapply(otu_names, function(x)
-    gsub(";+$", "", paste(sapply(taxa_table[x, ], as.character), collapse = ";"))
-  ))))
+expand_otu_names <- function(otu_names, taxa_table, use_short_names = FALSE) {
+  if (!use_short_names) {
+    return(paste(otu_names, sapply(otu_names, function(x)
+      gsub(";+$", "", paste(sapply(taxa_table[x, ], as.character), collapse = ";"))
+    )))
+  } else {
+    return(sapply(otu_names, function(x) {
+      # Get all taxonomic levels for this OTU
+      taxa_levels <- sapply(taxa_table[x, ], as.character)
+
+      # If species is known, return "Genus species"
+      if (taxa_levels["Species"] != "") {
+        paste(taxa_levels["Genus"], taxa_levels["Species"])
+      } else {
+        # Find the last non-empty level
+        last_nonempty <- max(which(taxa_levels != ""))
+        paste0("Unknown ", taxa_levels[last_nonempty])
+      }
+    }))
+  }
+}
 
   # if(which_level=="Otus"){
   #   if(N==dim(x)[2]){
@@ -115,7 +132,6 @@ expand_otu_names <- function(otu_names, taxa_table) {
   #     colnames(new_x)<-c(paste(colnames(new_x)[-(N+1)],sapply(colnames(new_x)[-(N+1)],function(x) gsub(";+$","",paste(sapply(OTU_taxonomy[x,],as.character),collapse=";")))),"Others")
   #   }
   # }
-}
 
 collate_taxonomy_2 <- function(physeq, rank = "Species") {
   if (!rank %in% phyloseq::rank_names(physeq)) {

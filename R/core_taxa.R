@@ -57,14 +57,39 @@ core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
   meta_table$SampleID <- rownames(meta_table)
 
   # TODO: clean up hypothesis testing
-  label="Abstraction_Method"
-  #meta_table$Groups <- as.factor(as.character(paste("Run ", meta_table$run, sep = "")))
-  meta_table$Groups <- "Test Group"
-  meta_table$Type <- NULL
-  meta_table$Type2 <- NULL
-  meta_table$Connections <- NULL
+  # label="Hypothesis All"
+  # meta_table$Groups<-"All"
+  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
 
-  #meta_table <- meta_table[meta_table$Groups == "Run 1",]
+  # #Hypothesis 1
+  # label="Excavated Scoop Hole"
+  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
+  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
+  # meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  May","Excavated Scoop Hole  July"),]
+
+  # #Hypothesis 2
+  # label="Community Scoop Hole"
+  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
+  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
+  # meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole May","Community Scoop Hole July"),]
+
+  # #Hypothesis 3
+  label="Hand Pump"
+  meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
+  meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
+  meta_table<-meta_table[meta_table$Groups %in% c("Hand Pump May","Hand Pump July"),]
+
+  # #Hypothesis 4
+  # label="Open_well"
+  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
+  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
+  # meta_table<-meta_table[meta_table$Groups %in% c("Open Well May","Open Well July"),]
+
+  # # #Hypothesis 5
+  # label="Downstream"
+  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
+  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
+  # meta_table<-meta_table[meta_table$Groups %in% c("Downstream May","Downstream July"),]
 
   # Validate that sample names exist in abundance table
   valid_samples <- intersect(rownames(meta_table), colnames(abund_table))
@@ -126,7 +151,7 @@ core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
   # calculating BC dissimilarity based on the 1st ranked OTU
   otu_start=otu_ranked$otu[1]
   start_matrix <- as.matrix(otu[otu_start,])
-  #start_matrix <- t(start_matrix)
+  start_matrix <- t(start_matrix)
   x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]- start_matrix[,x[2]]))/(2*nReads))
   x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
   df_s <- data.frame(x_names,x)
@@ -138,7 +163,7 @@ core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
   for(i in 2:500){
     otu_add=otu_ranked$otu[i]
     add_matrix <- as.matrix(otu[otu_add,])
-    #add_matrix <- t(add_matrix)
+    add_matrix <- t(add_matrix)
     start_matrix <- rbind(start_matrix, add_matrix)
     x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads))
     x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
@@ -169,9 +194,11 @@ core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
   BC_ranked <- left_join(BC_ranked, increaseDF)
   BC_ranked <- BC_ranked[-nrow(BC_ranked),]
 
-  #Creating thresholds for core inclusion
+  # Creating thresholds for core inclusion
+  # First (conservative) method is the elbow method for first-order difference - https://pommevilla.github.io/random/elbows.html
+  # Second finds all taxa until increase in explanatory value reaches < 2%
 
-  # elbow method (first order difference) (script modified from https://pommevilla.github.io/random/elbows.html)
+  # elbow method (first order difference)
   fo_difference <- function(pos){
     left <- (BC_ranked[pos, 2] - BC_ranked[1, 2]) / pos
     right <- (BC_ranked[nrow(BC_ranked), 2] - BC_ranked[pos, 2]) / (nrow(BC_ranked) - pos)
@@ -179,19 +206,25 @@ core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
   }
   BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
 
-  threshold <- 0
-  if (threshold_model == "elbow") {
-    # get highest first-order difference in LCBDs
-    threshold <- which.max(BC_ranked$fo_diffs)
-  } else {
-    # get last taxa where increase in explanatory value >= 2%
-    threshold <- last(as.numeric(as.character(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1 + (threshold_model / 100))])))
-  }
+  fo_threshold <- which.max(BC_ranked$fo_diffs)
+  pi_threshold <- last(as.numeric(as.character(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1 + (threshold_model / 100))])))
+
+  occ_abund_table$Type <- 'None'
+  occ_abund_table$Type[occ_abund_table$otu %in% otu_ranked$otu[1:fo_threshold]] <- 'MinCore'
+  occ_abund_table$Type[occ_abund_table$otu %in% otu_ranked$otu[fo_threshold + 1:pi_threshold]] <- 'Core'
+
+  # Give a title
+  occ_abund_table$Title <- label
 
   # Use Sloan neutral model to prioritize OTUs
   # Fitting neutral model (Burns et al., 2016 (ISME J) - functions are in the sncm.fit.R)
   spp=t(otu)
   taxon=as.vector(rownames(otu))
+
+  print(sprintf("Sample group has %d taxa", length(taxon)))
+  if (length(taxon) > 4000) {
+    warning("Binomial model may encounter issues when working with large numbers of taxa")
+  }
 
   #Models for the whole community
   obs.np=sncm.fit(spp, taxon, stats=FALSE, pool=NULL)
@@ -200,12 +233,9 @@ core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
   above.pred=sum(obs.np$freq > (obs.np$pred.upr), na.rm=TRUE)/sta.np$Richness  # fraction of OTUs above prediction
   below.pred=sum(obs.np$freq < (obs.np$pred.lwr), na.rm=TRUE)/sta.np$Richness  # fraction of OTUs below prediction
 
-  #Create a column defining "core" OTUs
-  occ_abund_table$fill <- 'no'
-  occ_abund_table$fill[occ_abund_table$otu %in% otu_ranked$otu[1:threshold]] <- 'core'
-
   # Collate response and set class name
   res <- list(
+    label = label,
     abund_table = abund_table,
     taxa_table = taxa_table,
     meta_table = meta_table,
@@ -231,12 +261,20 @@ plot.ECCOccupancyAbundance <- function(value) {
   #   labs(x = "log10(mean relative abundance)", y = "Occupancy")
 
   p <- ggplot() +
-    geom_point(data = value$occ_abund_table[value$occ_abund_table$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), pch=21, fill='white', alpha=0.2) +
-    geom_point(data = value$occ_abund_table[value$occ_abund_table$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), pch=21, fill='blue', size=1.8) +
+    geom_point(data = value$occ_abund_table, aes(x = log10(otu_rel), y = otu_occ, fill = Type), pch=21, alpha=0.2) +
     geom_line(color='black', data= value$obs.np, size=1, aes(y= value$obs.np$freq.pred, x=log10(value$obs.np$p)), alpha=.25) +
     geom_line(color='black', lty='twodash', size=1, data= value$obs.np, aes(y= value$obs.np$pred.upr, x=log10(value$obs.np$p)), alpha=.25)+
     geom_line(color='black', lty='twodash', size=1, data= value$obs.np, aes(y= value$obs.np$pred.lwr, x=log10(value$obs.np$p)), alpha=.25)+
+    scale_colour_manual(values = c("red", "blue", "white"), aesthetics = c("fill")) +
     labs(x="log10(mean relative abundance)", y="Occupancy")
+
+  p <- p + facet_wrap(~ Title)
+
+  p <- p + guides(fill="none")
+
+    # geom_point(data = value$occ_abund_table[value$occ_abund_table$Type == 'None',], aes(x = log10(otu_rel), y = otu_occ), pch=21, fill='white', alpha=0.2) +
+    # geom_point(data = value$occ_abund_table[value$occ_abund_table$Type != 'MinCore',], aes(x = log10(otu_rel), y = otu_occ), pch=21, fill='blue', size=1.8) +
+    # geom_point(data = value$occ_abund_table[value$occ_abund_table$Type != 'Core',], aes(x = log10(otu_rel), y = otu_occ), pch=21, fill='lightblue', size=1.8) +
 
   #TODO: highlight on the same occupancy-abundance plot OTUs that are above and below the neutral model prediction
   #TODO: add to the plot the above.pred and below.pred values
@@ -246,6 +284,7 @@ plot.ECCOccupancyAbundance <- function(value) {
 
 plot.ECCRankedSimilarity <- function(value) {
   BC_ranked <- value$BC_ranked
+  BC_ranked$Title <- value$label
 
   #Creating plot of Bray-Curtis similarity
   p <- ggplot(BC_ranked[1:100,], aes(x=factor(BC_ranked$rank[1:100], levels=BC_ranked$rank[1:100]))) +
@@ -261,15 +300,21 @@ plot.ECCRankedSimilarity <- function(value) {
     p <- p + annotate(geom = "text", x = value$threshold, y = 0.5, label = sprintf("Last %d%% increase (%d)", value$threshold_model, value$threshold), color = "blue")
   }
 
+  p <- p + facet_wrap(~ Title)
+
   print(p)
 }
 
-plot.ECCHeatmap <- function(value, what_detection = "absolute") {
+plot.ECCHeatmap <- function(value, what_detection = "absolute", horizontal = TRUE) {
   prevalences <- seq(.05, 1, .05)
 
   #Creating a plot of core taxa occupancy by time point
-  core <- value$occ_abund_table$otu[value$occ_abund_table$fill == 'core']
+  core <- value$occ_abund_table$otu[value$occ_abund_table$Type == 'MinCore']
   core_otu <- value$abund_table[rownames(value$abund_table) %in% core,]
+
+  if (length(core) == 0) {
+    stop("No taxa included in core")
+  }
 
   # # keep only taxa with positive sums
   # pseq.2 <- prune_taxa(taxa_sums(physeq) > 0, physeq)
@@ -284,12 +329,12 @@ plot.ECCHeatmap <- function(value, what_detection = "absolute") {
     detections <- 10^seq(log10(1e-3), log10(.2), length = 20)
   } else if(what_detection=="absolute") {
     #Detection with Absolute Count
-    detections <- 10^seq(log10(1), log10(max(microbiome::abundances(core_otu))), length = 20)
+    detections <- 10^seq(log10(1), log10(max(microbiome::abundances(core_otu))/10), length = 20)
     detections <- round(detections)
   }
 
   if (!is.null(value$taxa_table)) {
-    rownames(core_otu) <- expand_otu_names(rownames(core_otu), value$taxa_table)
+    rownames(core_otu) <- expand_otu_names(rownames(core_otu), value$taxa_table, use_short_names = TRUE)
   }
 
   p <- microbiome::plot_core(
@@ -299,8 +344,11 @@ plot.ECCHeatmap <- function(value, what_detection = "absolute") {
     plot.type = "heatmap",
     colours = rev(RColorBrewer::brewer.pal(5, "Spectral")),
     # taxa.order = value$otu_ranked$otu,
-    horizontal = TRUE,
+    horizontal = horizontal,
   )
+
+  p$data$Title <- value$label
+  p <- p + facet_wrap(~ Title)
 
   return(p)
 
