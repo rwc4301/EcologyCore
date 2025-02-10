@@ -68,16 +68,16 @@ core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
   # meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  May","Excavated Scoop Hole  July"),]
 
   # #Hypothesis 2
-  # label="Community Scoop Hole"
-  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
-  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
-  # meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole May","Community Scoop Hole July"),]
-
-  # #Hypothesis 3
-  label="Hand Pump"
+  label="Community Scoop Hole"
   meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
   meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
-  meta_table<-meta_table[meta_table$Groups %in% c("Hand Pump May","Hand Pump July"),]
+  meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole May","Community Scoop Hole July"),]
+
+  # #Hypothesis 3
+  # label="Hand Pump"
+  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
+  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
+  # meta_table<-meta_table[meta_table$Groups %in% c("Hand Pump May","Hand Pump July"),]
 
   # #Hypothesis 4
   # label="Open_well"
@@ -209,9 +209,13 @@ core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
   fo_threshold <- which.max(BC_ranked$fo_diffs)
   pi_threshold <- last(as.numeric(as.character(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1 + (threshold_model / 100))])))
 
+  # We will select ranked OTUs which contribute at least 2% of explanatory value (and the first one)
+  ranks=vctrs::vec_c(factor("1"), BC_ranked$rank[(BC_ranked$IncreaseBC >= 1 + (threshold_model / 100))])
+
   occ_abund_table$Type <- 'None'
-  occ_abund_table$Type[occ_abund_table$otu %in% otu_ranked$otu[1:fo_threshold]] <- 'MinCore'
+  # occ_abund_table$Type[occ_abund_table$otu %in% otu_ranked$otu[1:fo_threshold]] <- 'MinCore'
   occ_abund_table$Type[occ_abund_table$otu %in% otu_ranked$otu[fo_threshold + 1:pi_threshold]] <- 'Core'
+  occ_abund_table$Type[occ_abund_table$otu %in% otu_ranked$otu[ranks]] <- 'MinCore'
 
   # Give a title
   occ_abund_table$Title <- label
@@ -241,7 +245,8 @@ core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
     meta_table = meta_table,
     occ_abund_table = occ_abund_table,
     BC_ranked = BC_ranked,
-    threshold = threshold,
+    threshold1 = fo_threshold,
+    threshold2 = pi_threshold,
     threshold_model = threshold_model,
     obs.np = obs.np,
     sta.np = sta.np,
@@ -265,7 +270,7 @@ plot.ECCOccupancyAbundance <- function(value) {
     geom_line(color='black', data= value$obs.np, size=1, aes(y= value$obs.np$freq.pred, x=log10(value$obs.np$p)), alpha=.25) +
     geom_line(color='black', lty='twodash', size=1, data= value$obs.np, aes(y= value$obs.np$pred.upr, x=log10(value$obs.np$p)), alpha=.25)+
     geom_line(color='black', lty='twodash', size=1, data= value$obs.np, aes(y= value$obs.np$pred.lwr, x=log10(value$obs.np$p)), alpha=.25)+
-    scale_colour_manual(values = c("red", "blue", "white"), aesthetics = c("fill")) +
+    scale_colour_manual(values = c("blue", "blue", "white"), aesthetics = c("fill")) +
     labs(x="log10(mean relative abundance)", y="Occupancy")
 
   p <- p + facet_wrap(~ Title)
@@ -294,11 +299,8 @@ plot.ECCRankedSimilarity <- function(value) {
     # geom_vline(xintercept=lastCall, lty=3, col='blue', cex=.5) +
     labs(x='Ranked Taxa',y='Contribution to Bray-Curtis Dissimilarity')
 
-  if (value$threshold_model == "elbow") {
-    p <- p + annotate(geom = "text", x = value$threshold + 14, y = 0.1, label = sprintf("Elbow method (%d)", value$threshold), color = "red")
-  } else {
-    p <- p + annotate(geom = "text", x = value$threshold, y = 0.5, label = sprintf("Last %d%% increase (%d)", value$threshold_model, value$threshold), color = "blue")
-  }
+    # p <- p + annotate(geom = "text", x = value$threshold1 + 14, y = 0.1, label = sprintf("Elbow method (%d)", value$threshold1), color = "red")
+    p <- p + annotate(geom = "text", x = value$threshold2, y = 0.5, label = sprintf("Last %d%% increase (%d)", value$threshold_model, value$threshold2), color = "blue")
 
   p <- p + facet_wrap(~ Title)
 

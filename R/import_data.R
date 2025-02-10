@@ -109,7 +109,8 @@ expand_otu_names <- function(otu_names, taxa_table, use_short_names = FALSE) {
       gsub(";+$", "", paste(sapply(taxa_table[x, ], as.character), collapse = ";"))
     )))
   } else {
-    return(sapply(otu_names, function(x) {
+    # First generate all names
+    names <- sapply(otu_names, function(x) {
       # Get all taxonomic levels for this OTU
       taxa_levels <- sapply(taxa_table[x, ], as.character)
 
@@ -117,11 +118,27 @@ expand_otu_names <- function(otu_names, taxa_table, use_short_names = FALSE) {
       if (taxa_levels["Species"] != "") {
         paste(taxa_levels["Genus"], taxa_levels["Species"])
       } else {
-        # Find the last non-empty level
-        last_nonempty <- max(which(taxa_levels != ""))
-        paste0("Unknown ", taxa_levels[last_nonempty])
+        # Find the last non-empty level that isn't "uncultured"
+        nonempty_indices <- which(taxa_levels != "" & taxa_levels != "uncultured")
+        if (length(nonempty_indices) > 0) {
+          last_meaningful <- max(nonempty_indices)
+          paste0("Unknown ", taxa_levels[last_meaningful])
+        } else {
+          "Unknown taxonomy"
+        }
       }
-    }))
+    })
+    
+    # Handle duplicates by adding indices
+    duplicated_names <- table(names)
+    for (name in names(duplicated_names)) {
+      if (duplicated_names[name] > 1) {
+        indices <- which(names == name)
+        names[indices] <- paste0(names[indices], "_", seq_along(indices))
+      }
+    }
+    
+    return(names)
   }
 }
 
