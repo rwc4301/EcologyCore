@@ -62,16 +62,16 @@ core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
   # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
 
   # #Hypothesis 1
-  # label="Excavated Scoop Hole"
-  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
-  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
-  # meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  May","Excavated Scoop Hole  July"),]
-
-  # #Hypothesis 2
-  label="Community Scoop Hole"
+  label="Excavated Scoop Hole"
   meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
   meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
-  meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole May","Community Scoop Hole July"),]
+  meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  May","Excavated Scoop Hole  July"),]
+
+  # #Hypothesis 2
+  # label="Community Scoop Hole"
+  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
+  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
+  # meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole May","Community Scoop Hole July"),]
 
   # #Hypothesis 3
   # label="Hand Pump"
@@ -146,37 +146,113 @@ core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
   # Calculating the contribution of ranked OTUs to the BC similarity
   BCaddition <- NULL
 
-  nReads=1000
+  # Modified original script to accept non-rarefied data
+  library(dplyr)
 
-  # calculating BC dissimilarity based on the 1st ranked OTU
-  otu_start=otu_ranked$otu[1]
-  start_matrix <- as.matrix(otu[otu_start,])
-  start_matrix <- t(start_matrix)
-  x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]- start_matrix[,x[2]]))/(2*nReads))
-  x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-  df_s <- data.frame(x_names,x)
-  names(df_s)[2] <- 1
-  BCaddition <- rbind(BCaddition,df_s)
-  # calculating BC dissimilarity based on addition of ranked OTUs from 2nd to 500th.
-  # Can be set to the entire length of OTUs in the dataset, however it might take
-  # some time if more than 5000 OTUs are included.
+  # Pre-calculate the total counts for each sample from the full OTU table
+  sample_totals <- colSums(otu)
+
+  # --- 1. Start with the Top OTU ---
+
+  otu_start <- otu_ranked$otu[1]
+  start_matrix <- as.matrix(otu[otu_start, ])
+  start_matrix <- t(start_matrix)  # Now rows correspond to the first OTU's abundances per sample
+
+  # Calculate Bray-Curtis dissimilarity for each pair of samples,
+  # but normalize by the full sample totals
+  x <- apply(combn(ncol(start_matrix), 2), 2, function(pair) {
+    i1 <- pair[1]
+    i2 <- pair[2]
+    numerator <- sum(abs(start_matrix[, i1] - start_matrix[, i2]))
+    denominator <- sample_totals[i1] + sample_totals[i2]
+    numerator / denominator
+  })
+  x_names <- apply(combn(ncol(start_matrix), 2), 2, function(pair) {
+    paste(colnames(start_matrix)[pair], collapse = ' - ')
+  })
+  df_s <- data.frame(x_names, x)
+  names(df_s)[2] <- 1  # Label this column with the number of OTUs used (here, "1")
+  BCaddition <- df_s  # Initialize our results data frame
+
+  # --- 2. Loop Over Additional OTUs (from the 2nd to the 500th) ---
+
   for(i in 2:500){
-    otu_add=otu_ranked$otu[i]
-    add_matrix <- as.matrix(otu[otu_add,])
+    otu_add <- otu_ranked$otu[i]
+    add_matrix <- as.matrix(otu[otu_add, ])
     add_matrix <- t(add_matrix)
+
+    # Append the new OTU's counts (as a row) to our cumulative matrix.
+    # Now, start_matrix has the counts for the top i OTUs.
     start_matrix <- rbind(start_matrix, add_matrix)
-    x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads))
-    x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-    df_a <- data.frame(x_names,x)
-    names(df_a)[2] <- i
-    BCaddition <- left_join(BCaddition, df_a, by=c('x_names'))
+
+    # Recalculate the Bray-Curtis dissimilarity over the cumulative subset
+    # but continue to normalize using the full sample totals.
+    x <- apply(combn(ncol(start_matrix), 2), 2, function(pair) {
+      i1 <- pair[1]
+      i2 <- pair[2]
+      numerator <- sum(abs(start_matrix[, i1] - start_matrix[, i2]))
+      denominator <- sample_totals[i1] + sample_totals[i2]
+      numerator / denominator
+    })
+    x_names <- apply(combn(ncol(start_matrix), 2), 2, function(pair) {
+      paste(colnames(start_matrix)[pair], collapse = ' - ')
+    })
+
+    df_a <- data.frame(x_names, x)
+    names(df_a)[2] <- i  # Label this column with the number of OTUs used (i)
+
+    # Merge the new results into our cumulative results data frame
+    BCaddition <- left_join(BCaddition, df_a, by = "x_names")
   }
-  # calculating the BC dissimilarity of the whole dataset (not needed if the second loop is already including all OTUs)
-  x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
-  x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
-  df_full <- data.frame(x_names,x)
-  names(df_full)[2] <- length(rownames(otu))
-  BCfull <- left_join(BCaddition,df_full, by='x_names')
+
+  # --- 3. Calculate the Bray-Curtis Dissimilarity Using the Full OTU Table ---
+
+  x <- apply(combn(ncol(otu), 2), 2, function(pair) {
+    i1 <- pair[1]
+    i2 <- pair[2]
+    numerator <- sum(abs(otu[, i1] - otu[, i2]))
+    denominator <- sample_totals[i1] + sample_totals[i2]
+    numerator / denominator
+  })
+  x_names <- apply(combn(ncol(otu), 2), 2, function(pair) {
+    paste(colnames(otu)[pair], collapse = ' - ')
+  })
+  df_full <- data.frame(x_names, x)
+  names(df_full)[2] <- length(rownames(otu))  # Label with the total number of OTUs
+
+  # Merge the full data results with the cumulative results
+  BCfull <- left_join(BCaddition, df_full, by = "x_names")
+
+  # # calculating BC dissimilarity based on the 1st ranked OTU
+  # nReads=1000
+  # otu_start=otu_ranked$otu[1]
+  # start_matrix <- as.matrix(otu[otu_start,])
+  # start_matrix <- t(start_matrix)
+  # x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]- start_matrix[,x[2]]))/(2*nReads))
+  # x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+  # df_s <- data.frame(x_names,x)
+  # names(df_s)[2] <- 1
+  # BCaddition <- rbind(BCaddition,df_s)
+  # # calculating BC dissimilarity based on addition of ranked OTUs from 2nd to 500th.
+  # # Can be set to the entire length of OTUs in the dataset, however it might take
+  # # some time if more than 5000 OTUs are included.
+  # for(i in 2:500){
+  #   otu_add=otu_ranked$otu[i]
+  #   add_matrix <- as.matrix(otu[otu_add,])
+  #   add_matrix <- t(add_matrix)
+  #   start_matrix <- rbind(start_matrix, add_matrix)
+  #   x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads))
+  #   x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+  #   df_a <- data.frame(x_names,x)
+  #   names(df_a)[2] <- i
+  #   BCaddition <- left_join(BCaddition, df_a, by=c('x_names'))
+  # }
+  # # calculating the BC dissimilarity of the whole dataset (not needed if the second loop is already including all OTUs)
+  # x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
+  # x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
+  # df_full <- data.frame(x_names,x)
+  # names(df_full)[2] <- length(rownames(otu))
+  # BCfull <- left_join(BCaddition,df_full, by='x_names')
 
   rownames(BCfull) <- BCfull$x_names
   temp_BC <- BCfull
@@ -231,11 +307,11 @@ core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
   }
 
   #Models for the whole community
-  obs.np=sncm.fit(spp, taxon, stats=FALSE, pool=NULL)
-  sta.np=sncm.fit(spp, taxon, stats=TRUE, pool=NULL)
-
-  above.pred=sum(obs.np$freq > (obs.np$pred.upr), na.rm=TRUE)/sta.np$Richness  # fraction of OTUs above prediction
-  below.pred=sum(obs.np$freq < (obs.np$pred.lwr), na.rm=TRUE)/sta.np$Richness  # fraction of OTUs below prediction
+  # obs.np=sncm.fit(spp, taxon, stats=FALSE, pool=NULL)
+  # sta.np=sncm.fit(spp, taxon, stats=TRUE, pool=NULL)
+  #
+  # above.pred=sum(obs.np$freq > (obs.np$pred.upr), na.rm=TRUE)/sta.np$Richness  # fraction of OTUs above prediction
+  # below.pred=sum(obs.np$freq < (obs.np$pred.lwr), na.rm=TRUE)/sta.np$Richness  # fraction of OTUs below prediction
 
   # Collate response and set class name
   res <- list(
@@ -248,10 +324,14 @@ core_occupancy_abundance_model <- function(physeq, threshold_model = 2) {
     threshold1 = fo_threshold,
     threshold2 = pi_threshold,
     threshold_model = threshold_model,
-    obs.np = obs.np,
-    sta.np = sta.np,
-    above.pred = above.pred,
-    below.pred = below.pred,
+    # obs.np = obs.np,
+    # sta.np = sta.np,
+    # above.pred = above.pred,
+    # below.pred = below.pred,
+    obs.np = NULL,
+    sta.np = NULL,
+    above.pred = NULL,
+    below.pred = NULL,
     otu_ranked = otu_ranked
   )
   class(res) <- "ECCOccupancyAbundance"
@@ -267,11 +347,15 @@ plot.ECCOccupancyAbundance <- function(value) {
 
   p <- ggplot() +
     geom_point(data = value$occ_abund_table, aes(x = log10(otu_rel), y = otu_occ, fill = Type), pch=21, alpha=0.2) +
-    geom_line(color='black', data= value$obs.np, size=1, aes(y= value$obs.np$freq.pred, x=log10(value$obs.np$p)), alpha=.25) +
-    geom_line(color='black', lty='twodash', size=1, data= value$obs.np, aes(y= value$obs.np$pred.upr, x=log10(value$obs.np$p)), alpha=.25)+
-    geom_line(color='black', lty='twodash', size=1, data= value$obs.np, aes(y= value$obs.np$pred.lwr, x=log10(value$obs.np$p)), alpha=.25)+
     scale_colour_manual(values = c("blue", "blue", "white"), aesthetics = c("fill")) +
     labs(x="log10(mean relative abundance)", y="Occupancy")
+
+  if (!is.null(value$obs.np)) {
+    p <- p +
+      geom_line(color='black', data= value$obs.np, size=1, aes(y= value$obs.np$freq.pred, x=log10(value$obs.np$p)), alpha=.25) +
+      geom_line(color='black', lty='twodash', size=1, data= value$obs.np, aes(y= value$obs.np$pred.upr, x=log10(value$obs.np$p)), alpha=.25)+
+      geom_line(color='black', lty='twodash', size=1, data= value$obs.np, aes(y= value$obs.np$pred.lwr, x=log10(value$obs.np$p)), alpha=.25)
+  }
 
   p <- p + facet_wrap(~ Title)
 

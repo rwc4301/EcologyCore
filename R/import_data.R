@@ -103,6 +103,14 @@ merge_data <- function(phyloseqs) {
   }
 }
 
+metadata_frame <- function(physeq) {
+  ma <- as.data.frame(physeq@sam_data@.Data)
+  rownames(ma) <- physeq@sam_data@row.names
+  colnames(ma) <- physeq@sam_data@names
+
+  return(ma)
+}
+
 expand_otu_names <- function(otu_names, taxa_table, use_short_names = FALSE) {
   if (!use_short_names) {
     return(paste(otu_names, sapply(otu_names, function(x)
@@ -128,7 +136,7 @@ expand_otu_names <- function(otu_names, taxa_table, use_short_names = FALSE) {
         }
       }
     })
-    
+
     # Handle duplicates by adding indices
     duplicated_names <- table(names)
     for (name in names(duplicated_names)) {
@@ -137,7 +145,7 @@ expand_otu_names <- function(otu_names, taxa_table, use_short_names = FALSE) {
         names[indices] <- paste0(names[indices], "_", seq_along(indices))
       }
     }
-    
+
     return(names)
   }
 }

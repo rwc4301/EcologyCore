@@ -32,9 +32,9 @@ devtools::load_all("..")
 #tree_path="/Users/reuben/test_data/data/Batch 1/tree_rooted.nwk"
 #grouping_column<-"Groups"
 
-biom_path="DADA2/feature_w_tax.biom"
-meta_path="meta_table.csv"
-tree_path="DADA2/tree.nwk"
+biom_path="data/DADA2/feature_w_tax.biom"
+meta_path="data/meta_table.csv"
+tree_path="data/DADA2/tree.nwk"
 ```
 
 ```{r import_data, include=FALSE}
@@ -49,10 +49,43 @@ experiment <- import_data(biom_path, meta_path)
 
 #rm(result)
 ```
+```{r summary}
+read_counts <- sample_sums(experiment)
+
+summary(read_counts)
+```
+
+
+```{r qpcr}
+# Later, we're going to fit a neutral model to our core microbiome in order to see which members are selected for deterministically
+# The Sloan neutral model we're using assumes a constant coomunity size (N), but library sizes can vary by orders of magnitude between samples
+# So, we have two options: either rarefy the data, or in this case we have total microbial count data in the form of 16S qPCR results, which we can use to give us a mean value for microbial counts
+
+ta <- as.data.frame(otu_table(experiment))
+ma <- metadata_frame(experiment)
+
+library_size <- as.data.frame(rowSums(ta))
+
+ta_scaled <- as.matrix(ta) * as.numeric(as.character(ma[row.names(ta), "qPCR_16S_per_ml"])) / as.numeric(as.character(library_size[row.names(library_size), "rowSums(ta)"]))
+
+ta_scaled_f <- t(ta_scaled)
+
+total_reads <- colSums(ta_scaled_f)
+
+total_reads_df <- data.frame(Sample = names(total_reads), TotalReads = total_reads)
+
+p <- ggplot(total_reads_df, aes(x = TotalReads)) + geom_density()
+
+print(p)
+
+mean_N <- mean(total_reads)
+```
 
 # Core Microbiome
 
 The core microbiome captures the set of microbial taxa consistently found across a given group of samples.
+
+https://www.pnas.org/doi/full/10.1073/pnas.2104429118#body-ref-r48
 
 ## Abundance-Occupancy Model
 
@@ -73,8 +106,7 @@ These species play an active role in shaping the ecological community.
 ```{r core_rs_plot, echo=FALSE}
 p <- plot.ECCHeatmap(core)
 
-p$data$Title <- "Test Group"
-p <- p + facet_wrap(~ Title)
+
 
 print(p)
 ```
