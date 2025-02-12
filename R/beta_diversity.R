@@ -43,7 +43,7 @@ beta_diversity <- function(physeq, PERMANOVA_variables, distance_metrics = c("br
     sol <- cmdscale(dist, eig = TRUE)
     # aov <- vegan::adonis(as.formula(paste("dist ~", paste(PERMANOVA_variables, collapse = "+"))), data = meta_table[rownames(phyloseq::otu_table(physeq)), ])
     aov <- vegan::adonis2(as.formula(paste("dist ~", paste(PERMANOVA_variables, collapse = "+"))), data = meta_table)
-print("done")
+
     if (!is.null(sol)) {
       sol <- append(sol, list(metric = d))
       sol <- append(sol, list(aov = aov))
@@ -182,11 +182,14 @@ print("done")
 
   colnames(df_ord)[5] <- "metric"    #weird bug here
 
-  return(list(PCOA, PCOA_lines, df_ord, mds))
+  res <- list(PCOA, PCOA_lines, df_ord, mds)
+  class(res) <- "ECBetaDiversity"
+
+  return()
 }
 
 #' @import ggplot2
-beta_diversity_plot <- function(df, PCOA_lines, df_ord, mds, PERMANOVA_variables, meta_table) {
+plot.ECBetaDiversity <- function(df, PCOA_lines, df_ord, mds, PERMANOVA_variables, meta_table) {
   point_size = 5
   point_opacity = 0.8
   # number_of_rows = 1
