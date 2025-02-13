@@ -90,7 +90,7 @@ https://www.pnas.org/doi/full/10.1073/pnas.2104429118#body-ref-r48
 ## Abundance-Occupancy Model
 
 ```{r core, include=FALSE}
-core <- core_occupancy_abundance_model(experiment)
+core <- core_microbiome(experiment)
 ```
 
 ```{r core_oa_plot, echo=FALSE}
