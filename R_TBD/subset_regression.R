@@ -127,9 +127,15 @@ subset_regression <- function(dependent_table, meta_table, dependent_variable) {
   names(CV_table)<-c("Model")
   CV_table$`Cross-validation Errors`<-cv.errors
   CV_table<-CV_table[order(CV_table$`Cross-validation Errors`,decreasing=FALSE),]
-  print(xtable(CV_table,display=c("s","s","f"),digits=5), type="html", file=paste(label,"_CV_errors.html",sep=""),html.table.attributes = "border = '1', align = 'center', cellspacing='0', cellpadding='0'")
+  #print(xtable(CV_table,display=c("s","s","f"),digits=5), type="html", file=paste(label,"_CV_errors.html",sep=""),html.table.attributes = "border = '1', align = 'center', cellspacing='0', cellpadding='0'")
 
   best_model<-lm(get_model_formula(best_variable_model,models,dependent_variable),data=lm.dat)
+
+  return (structure(list(
+    CV_table = CV_table,
+    best_model = best_model,
+    models = models
+  ), class = "ECSubsetRegression"))
 
   #Get visualisations for all best models
   for (i in 1:nvmax){
@@ -159,4 +165,16 @@ subset_regression <- function(dependent_table, meta_table, dependent_variable) {
     print(p)
     dev.off()
   }
+}
+
+summary.ECSubsetRegression <- function(value) {
+  #print(xtable(CV_table,display=c("s","s","f"),digits=5), type="html", file=paste(label,"_CV_errors.html",sep=""),html.table.attributes = "border = '1', align = 'center', cellspacing='0', cellpadding='0'")
+}
+
+plot.ECSubsetRegression <- function(value) {
+
+}
+
+print.ECSubsetRegression <- function(value) {
+
 }
