@@ -19,9 +19,12 @@
 ## ECCOccupancyAbundance
 ## ECCRankedSimilarity
 
-# set threshold_model to 'elbow' to use first-order difference
+# set model_threshold to 'elbow' to use first-order difference
 # model = occ_abund for new occupancy model; set model_threshold for last % increase
 # model = occupancy for old model based on prevalence and set model_threshold for min prevalence
+#' @import tibble
+#' @import dplyr
+#' @import tidyr
 core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
   # Add input validation
   if (is.null(physeq)) {
@@ -285,10 +288,10 @@ core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
   BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
 
   fo_threshold <- which.max(BC_ranked$fo_diffs)
-  pi_threshold <- last(as.numeric(as.character(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1 + (threshold_model / 100))])))
+  pi_threshold <- last(as.numeric(as.character(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1 + (model_threshold / 100))])))
 
   # We will select ranked OTUs which contribute at least 2% of explanatory value (and the first one)
-  ranks=vctrs::vec_c(factor("1"), BC_ranked$rank[(BC_ranked$IncreaseBC >= 1 + (threshold_model / 100))])
+  ranks=vctrs::vec_c(factor("1"), BC_ranked$rank[(BC_ranked$IncreaseBC >= 1 + (model_threshold / 100))])
 
   occ_abund_table$Type <- 'None'
   # occ_abund_table$Type[occ_abund_table$otu %in% otu_ranked$otu[1:fo_threshold]] <- 'MinCore'
@@ -325,7 +328,7 @@ core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
     BC_ranked = BC_ranked,
     threshold1 = fo_threshold,
     threshold2 = pi_threshold,
-    threshold_model = threshold_model,
+    model_threshold = model_threshold,
     # obs.np = obs.np,
     # sta.np = sta.np,
     # above.pred = above.pred,
@@ -386,7 +389,7 @@ plot.ECCRankedSimilarity <- function(value) {
     labs(x='Ranked Taxa',y='Contribution to Bray-Curtis Dissimilarity')
 
     # p <- p + annotate(geom = "text", x = value$threshold1 + 14, y = 0.1, label = sprintf("Elbow method (%d)", value$threshold1), color = "red")
-    p <- p + annotate(geom = "text", x = value$threshold2, y = 0.5, label = sprintf("Last %d%% increase (%d)", value$threshold_model, value$threshold2), color = "blue")
+    p <- p + annotate(geom = "text", x = value$threshold2, y = 0.5, label = sprintf("Last %d%% increase (%d)", value$model_threshold, value$threshold2), color = "blue")
 
   p <- p + facet_wrap(~ Title)
 

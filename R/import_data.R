@@ -113,40 +113,49 @@ metadata_frame <- function(physeq) {
 
 expand_otu_names <- function(otu_names, taxa_table, use_short_names = FALSE) {
   if (!use_short_names) {
-    return(paste(otu_names, sapply(otu_names, function(x)
-      gsub(";+$", "", paste(sapply(taxa_table[x, ], as.character), collapse = ";"))
-    )))
+    return(paste(otu_names, sapply(otu_names, function(x) {
+      # For each OTU, replace NA with "" for each taxonomic level.
+      tax_vec <- sapply(taxa_table[x, ], function(val) {
+        if (is.na(val)) "" else as.character(val)
+      })
+      cleaned_tax <- gsub(";+$", "", paste(tax_vec, collapse = ";"))
+      return(cleaned_tax)
+    })))
   } else {
-    # First generate all names
-    names <- sapply(otu_names, function(x) {
-      # Get all taxonomic levels for this OTU
-      taxa_levels <- sapply(taxa_table[x, ], as.character)
-
-      # If species is known, return "Genus species"
-      if (taxa_levels["Species"] != "") {
-        paste(taxa_levels["Genus"], taxa_levels["Species"])
+    # Generate short names
+    names_out <- sapply(otu_names, function(x) {
+      # Get taxonomic levels for OTU x, replacing NA with empty strings.
+      taxa_levels <- sapply(taxa_table[x, ], function(val) ifelse(is.na(val), "", as.character(val)))
+      
+      # Attempt to use the "Species" level if available.
+      if (!is.null(taxa_levels["Species"]) && taxa_levels["Species"] != "") {
+        return(paste(taxa_levels["Genus"], taxa_levels["Species"]))
+      } else if (!is.null(taxa_levels["Genus"]) && taxa_levels["Genus"] != "") {
+        # If species is missing but genus is available, just return the genus.
+        return(taxa_levels["Genus"])
       } else {
-        # Find the last non-empty level that isn't "uncultured"
+        # If collating at a higher taxonomy leads to missing lower-level info,
+        # try to find the highest non-empty taxonomic level.
         nonempty_indices <- which(taxa_levels != "" & taxa_levels != "uncultured")
         if (length(nonempty_indices) > 0) {
           last_meaningful <- max(nonempty_indices)
-          paste0("Unknown ", taxa_levels[last_meaningful])
+          return(paste0("Unknown ", taxa_levels[last_meaningful]))
         } else {
-          "Unknown taxonomy"
+          return("Unknown taxonomy")
         }
       }
     })
-
-    # Handle duplicates by adding indices
-    duplicated_names <- table(names)
+    
+    # Handle duplicates by adding an index
+    duplicated_names <- table(names_out)
     for (name in names(duplicated_names)) {
       if (duplicated_names[name] > 1) {
-        indices <- which(names == name)
-        names[indices] <- paste0(names[indices], "_", seq_along(indices))
+        indices <- which(names_out == name)
+        names_out[indices] <- paste0(names_out[indices], "_", seq_along(indices))
       }
     }
-
-    return(names)
+    
+    return(names_out)
   }
 }
 
