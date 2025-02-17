@@ -67,10 +67,10 @@ core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
   # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
 
   # #Hypothesis 1
-  label="Excavated Scoop Hole"
-  meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
-  meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
-  meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  May","Excavated Scoop Hole  July"),]
+  # label="Excavated Scoop Hole"
+  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
+  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
+  # meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  May","Excavated Scoop Hole  July"),]
 
   # #Hypothesis 2
   # label="Community Scoop Hole"
@@ -85,16 +85,16 @@ core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
   # meta_table<-meta_table[meta_table$Groups %in% c("Hand Pump May","Hand Pump July"),]
 
   # #Hypothesis 4
-  # label="Open_well"
+  # label="Open Well"
   # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
   # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
   # meta_table<-meta_table[meta_table$Groups %in% c("Open Well May","Open Well July"),]
 
   # # #Hypothesis 5
-  # label="Downstream"
-  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
-  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
-  # meta_table<-meta_table[meta_table$Groups %in% c("Downstream May","Downstream July"),]
+  label="Downstream"
+  meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
+  meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
+  meta_table<-meta_table[meta_table$Groups %in% c("Downstream May","Downstream July"),]
 
   # Validate that sample names exist in abundance table
   valid_samples <- intersect(rownames(meta_table), colnames(abund_table))
@@ -181,17 +181,17 @@ core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
 
   # --- 2. Loop Over Additional OTUs (from the 2nd to the 500th) ---
 
-  for(i in 2:500){
-    otu_add <- otu_ranked$otu[i]
+  for(i in 2:min(500, nrow(otu_ranked))) {
+    # Ensure the OTU identifier is treated as a character string
+    otu_add <- as.character(otu_ranked$otu[i])
     add_matrix <- as.matrix(otu[otu_add, ])
     add_matrix <- t(add_matrix)
 
     # Append the new OTU's counts (as a row) to our cumulative matrix.
-    # Now, start_matrix has the counts for the top i OTUs.
     start_matrix <- rbind(start_matrix, add_matrix)
 
-    # Recalculate the Bray-Curtis dissimilarity over the cumulative subset
-    # but continue to normalize using the full sample totals.
+    # Recalculate the Bray-Curtis dissimilarity over the cumulative subset,
+    # but use the full sample totals for normalization.
     x <- apply(combn(ncol(start_matrix), 2), 2, function(pair) {
       i1 <- pair[1]
       i2 <- pair[2]
@@ -288,15 +288,29 @@ core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
   BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
 
   fo_threshold <- which.max(BC_ranked$fo_diffs)
-  pi_threshold <- last(as.numeric(as.character(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1 + (model_threshold / 100))])))
+  # Get candidate ranks that meet the threshold for IncreaseBC
+  pi_candidates <- as.numeric(as.character(BC_ranked$rank[BC_ranked$IncreaseBC >= 1 + (model_threshold / 100)]))
+  if (length(pi_candidates) == 0) {
+    warning("No OTUs meet the minimum increase threshold. Setting pi_threshold to the maximum available rank.")
+    pi_threshold <- max(as.numeric(as.character(BC_ranked$rank)))
+  } else {
+    pi_threshold <- last(pi_candidates)
+  }
 
-  # We will select ranked OTUs which contribute at least 2% of explanatory value (and the first one)
-  ranks=vctrs::vec_c(factor("1"), BC_ranked$rank[(BC_ranked$IncreaseBC >= 1 + (model_threshold / 100))])
+  print(pi_candidates)
+  print(fo_threshold)
+
+  # We will also select ranked OTUs which meet the threshold criteria for MinCore designation.
+  ranks <- vctrs::vec_c(factor("1"),
+              BC_ranked$rank[BC_ranked$IncreaseBC >= 1 + (model_threshold / 100)])
 
   occ_abund_table$Type <- 'None'
-  # occ_abund_table$Type[occ_abund_table$otu %in% otu_ranked$otu[1:fo_threshold]] <- 'MinCore'
-  occ_abund_table$Type[occ_abund_table$otu %in% otu_ranked$otu[fo_threshold + 1:pi_threshold]] <- 'Core'
-  occ_abund_table$Type[occ_abund_table$otu %in% otu_ranked$otu[ranks]] <- 'MinCore'
+  # If you want to include the first set of taxa as MinCore, you can uncomment this line:
+  occ_abund_table$Type[occ_abund_table$otu %in% otu_ranked$otu[1:fo_threshold]] <- 'MinCore'
+
+  # Note the use of parentheses to correctly create the sequence from the lower to the upper index.
+  occ_abund_table$Type[occ_abund_table$otu %in% otu_ranked$otu[(fo_threshold + 1):pi_threshold]] <- 'Core'
+  #occ_abund_table$Type[occ_abund_table$otu %in% otu_ranked$otu[ranks]] <- 'MinCore'
 
   # Give a title
   occ_abund_table$Title <- label
@@ -425,7 +439,7 @@ plot.ECCoreMicrobiome <- function(value, what_detection = "absolute", horizontal
   }
 
   if (!is.null(value$taxa_table)) {
-    rownames(core_otu) <- expand_otu_names(rownames(core_otu), value$taxa_table, use_short_names = TRUE)
+    rownames(core_otu) <- expand_otu_names(rownames(core_otu), value$taxa_table, use_short_names = FALSE)
   }
 
   p <- microbiome::plot_core(
@@ -439,7 +453,10 @@ plot.ECCoreMicrobiome <- function(value, what_detection = "absolute", horizontal
   )
 
   p$data$Title <- value$label
+
   p <- p + facet_wrap(~ Title)
+  #p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
 
   return(p)
 

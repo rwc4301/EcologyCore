@@ -49,12 +49,12 @@ experiment <- import_data(biom_path, meta_path)
 
 #rm(result)
 ```
+
 ```{r summary}
 read_counts <- sample_sums(experiment)
 
 summary(read_counts)
 ```
-
 
 ```{r qpcr}
 # Later, we're going to fit a neutral model to our core microbiome in order to see which members are selected for deterministically
@@ -85,16 +85,26 @@ mean_N <- mean(total_reads)
 
 The core microbiome captures the set of microbial taxa consistently found across a given group of samples.
 
-https://www.pnas.org/doi/full/10.1073/pnas.2104429118#body-ref-r48
+<https://www.pnas.org/doi/full/10.1073/pnas.2104429118#body-ref-r48>
+
+```{r}
+experiment <- collate_taxonomy_2(experiment, rank = "Genus")
+```
 
 ## Abundance-Occupancy Model
 
 ```{r core, include=FALSE}
-core <- core_microbiome(experiment)
+csh <- core_microbiome(experiment)
+dsp <- core_microbiome(experiment)
+esh <- core_microbiome(experiment)
+hp <- core_microbiome(experiment)
+ow <- core_microbiome(experiment)
 ```
 
 ```{r core_oa_plot, echo=FALSE}
-plot.ECCOccupancyAbundance(core)
+p <- plot_theme_default(plot.ECCOccupancyAbundance(core))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+print(p)
 ```
 
 ```{r core_rs_plot, echo=FALSE}
@@ -104,9 +114,8 @@ plot.ECCRankedSimilarity(core)
 These species play an active role in shaping the ecological community.
 
 ```{r core_rs_plot, echo=FALSE}
-p <- plot.ECCHeatmap(core)
-
-
+p <- plot_theme_default(plot.ECCoreMicrobiome(core, horizontal = FALSE))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
 
 print(p)
 ```

@@ -21,7 +21,7 @@ plot_theme_default <- function(
   strip_text_size = 16,
   increment_divider = 2,
   exclude_pvalues_text_from_drawing = FALSE,
-  legends_position_bottom = TRUE,
+  legend.position = "left", # left | right | top | bottom
   exclude_legends = TRUE,
   pairwise_text_size = 7,
   number_of_rows = 1,
@@ -51,7 +51,7 @@ plot_theme_default <- function(
     text = element_text(size = text_size),
   )
 
-  if(legends_position_bottom) {
+  if(legend.position == "bottom") {
     plot <- plot + theme(
       legend.key = element_blank(),  #removes the box around each legend item
       legend.position = "bottom", #legend at the bottom
