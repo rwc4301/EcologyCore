@@ -16,6 +16,8 @@ occ_threshold<-function (m, threshold, max_absent = 0)
 }
 
 coda_glmnet_analysis <- function(physeq) {
+  res<-NULL
+
   # TODO: remove
   grouping_column <- "Groups"
 
@@ -77,44 +79,47 @@ coda_glmnet_analysis <- function(physeq) {
         #The choice of choosing the penalized parameter as lambda="lambda.min" instead of "lambda.1se" is purely
         #to increase the number of variables selected
         #Check if there are only two values
-        res<-NULL
         if(length(unique(mt2[,j]))==2){
           if(class(mt2[,j])!="factor"){
             mt2[,j]<-as.factor(as.character(mt2[,j]))
           }
-          res<-coda_glmnet(x=at2,y=mt2[,j])
-
-          #Now draw the expression of the selected taxa
-          df<-reshape2::melt(normalised_table[,res$taxa.name])
-          colnames(df)<-c("Sample","Feature","Value")
-          df<-data.frame(df,Groups=mt2[as.character(df$Sample),j])
-
-          p<-ggplot(df,aes(Groups,Value,colour=Groups))+ylab(normalisation_method)
-          p<-p+geom_boxplot(outlier.size=0,show.legend=FALSE,position="identity")+geom_jitter(position = position_jitter(height = 0, width=0), size=2)
-          p<-p+facet_wrap( ~ Feature , scales="free_x",nrow=1)
-          p<-p+theme_bw()
-          p<-p+theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))+theme(strip.text.x = element_text(size = 16, colour = "black", angle = 90))
-          p<-p+scale_color_manual("Groups",values=c("#ff7e24","#7967ed"))
-          p<-p+guides(colour=FALSE) #FALSE
-          pdf(paste("Expressions_plot_",label,"_",i,"_",j,".pdf",sep=""),width=ceiling((length(res$taxa.name)*80/200)+2.6),height=15)
-          print(p)
-          dev.off()
-
-
+          res<-coda4microbiome::coda_glmnet(x=at2,y=mt2[,j])
         } else {
-          res<-coda_glmnet(x=at2,y=mt2[,j],lambda="lambda.min",showPlots=FALSE)
+          res<-coda4microbiome::coda_glmnet(x=at2,y=mt2[,j],lambda="lambda.min",showPlots=FALSE)
         }
-        pdf(paste("Signature_plot_",label,"_",i,"_",j,".pdf",sep=""),height=max(3,ceiling(length(res$taxa.num)/4)*height_adjustment),width=20)
-        plot(res$`signature plot`)
-        dev.off()
-        pdf(paste("Predictions_plot_",label,"_",i,"_",j,".pdf",sep=""),height=5,width=10)
-        plot(res$`predictions plot`)
-        dev.off()
       }
     }
   }, error = function(e) {
     message(conditionMessage(e))
   })
   }
+
+  class(res) <- "CompositionalRegression"
+  return (res)
 }
 
+plot.CompositionalRegression <- function(res) {
+
+  #Now draw the expression of the selected taxa
+  df<-reshape2::melt(normalised_table[,res$taxa.name])
+  colnames(df)<-c("Sample","Feature","Value")
+  df<-data.frame(df,Groups=mt2[as.character(df$Sample),j])
+
+  p<-ggplot(df,aes(Groups,Value,colour=Groups))+ylab(normalisation_method)
+  p<-p+geom_boxplot(outlier.size=0,show.legend=FALSE,position="identity")+geom_jitter(position = position_jitter(height = 0, width=0), size=2)
+  p<-p+facet_wrap( ~ Feature , scales="free_x",nrow=1)
+  p<-p+theme_bw()
+  p<-p+theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))+theme(strip.text.x = element_text(size = 16, colour = "black", angle = 90))
+  p<-p+scale_color_manual("Groups",values=c("#ff7e24","#7967ed"))
+  p<-p+guides(colour=FALSE) #FALSE
+  pdf(paste("Expressions_plot_",label,"_",i,"_",j,".pdf",sep=""),width=ceiling((length(res$taxa.name)*80/200)+2.6),height=15)
+  print(p)
+  dev.off()
+
+  pdf(paste("Signature_plot_",label,"_",i,"_",j,".pdf",sep=""),height=max(3,ceiling(length(res$taxa.num)/4)*height_adjustment),width=20)
+  plot(res$`signature plot`)
+  dev.off()
+  pdf(paste("Predictions_plot_",label,"_",i,"_",j,".pdf",sep=""),height=5,width=10)
+  plot(res$`predictions plot`)
+  dev.off()
+}
