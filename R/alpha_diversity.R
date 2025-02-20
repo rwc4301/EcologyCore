@@ -8,7 +8,6 @@
 ## Also works for picrust data - need to round abund_table
 
 alpha_diversity <- function(abund_table, OTU_taxonomy, meta_table, OTU_tree) {
-# alpha_diversity <- function(physeq) {
   # TODO: remove
   grouping_column <- "Groups"
 
@@ -73,9 +72,13 @@ alpha_diversity_2 <- function(dt, pval, meta_table, grouping_column) {
   pval<-pval[as.numeric(pval$pvalue)<=pValueCutoff,]
 
   #I am using sapply to generate significances for pval$pvalue using the cut function.
-  pval$pvalue<-sapply(as.numeric(pval$pvalue),function(x){as.character(cut(x,breaks=c(-Inf, 0.001, 0.01, 0.05, Inf),label=c("***", "**", "*", "")))})
+  #pval$pvalue<-sapply(as.numeric(pval$pvalue),function(x){as.character(cut(x,breaks=c(-Inf, 0.001, 0.01, 0.05, Inf),label=c("***", "**", "*", "")))})
 
   df <- as.data.frame(dt)
+
+  #I am using sapply to generate significances for pval$pvalue using the cut function.
+  pval$pstar<-sapply(as.numeric(pval$pvalue),function(x){as.character(cut(x,breaks=c(-Inf, 0.001, 0.01, 0.05, Inf),label=c("***", "**", "*", "")))})
+
 
   #### IT'S FUCKED!!!!!
 
@@ -140,16 +143,18 @@ alpha_diversity_2 <- function(dt, pval, meta_table, grouping_column) {
     names(df_pw)<-c("measure","from","to","y","p")
   }
 
-  res <- list(df, df_pw)
-  class(res) <- "ECAlphaDiversity"
-
-  return(list(df, df_pw, meta_table))
+  return(structure(list(df = df, df_pw = df_pw, pval = pval, meta_table = meta_table), className = "ECAlphaDiversity"))
 }
 
 #### Plotting Function ####
 
 #' @import ggplot2
-plot.ECAlphaDiversity <- function(df, df_pw, meta_table) {
+#' @import dplyr
+plot.ECAlphaDiversity <- function(value) {
+  df <- value$df
+  df_pw <- value$df_pw
+  meta_table <- value$meta_table
+
   point_size = 5
   point_opacity = 0.8
   number_of_rows = 1
@@ -158,20 +163,26 @@ plot.ECAlphaDiversity <- function(df, df_pw, meta_table) {
   exclude_pvalues_text_from_drawing = FALSE
   grouping_column = "Groups"
 
+  labels <- setNames(paste(value$pval$measure, value$pval$pstar), pval$measure)
+
   p<-NULL
-  if(!"Type" %in% colnames(meta_table)){
-    if(!"Type2" %in% colnames(meta_table)){
-      p<-ggplot(aes_string(x=grouping_column,y="value",color=grouping_column,group=grouping_column),data=df)
-    } else {
-      p<-ggplot(aes_string(x=grouping_column,y="value",color=grouping_column,group=grouping_column,shape="Type2"),data=df)
-    }
+  if ("Type" %in% colnames(meta_table) && "Type2" %in% colnames(meta_table)) {
+    p <- ggplot(aes_string(x=grouping_column, y="value", color=grouping_column, group=grouping_column, shape="interaction(Type,Type2)"), data=df)
+  } else if ("Type2" %in% colnames(meta_table)) {
+    p <- ggplot(aes_string(x=grouping_column, y="value", color=grouping_column, group=grouping_column, shape="Type2"), data=df)
+  } else if ("Type" %in% colnames(meta_table)) {
+    p <- ggplot(aes_string(x=grouping_column, y="value", color=grouping_column, group=grouping_column, shape="Type"), data=df)
   } else {
-    p<-ggplot(aes_string(x=grouping_column,y="value",color=grouping_column,group=grouping_column,shape="interaction(Type,Type2)"),data=df)
+    p <- ggplot(aes_string(x=grouping_column, y="value", color=grouping_column, group=grouping_column), data=df)
   }
 
-  p<-p+geom_boxplot(outlier.size=0,show.legend=FALSE)#+geom_jitter(position = position_jitter(height = 0, width=0),show.legend=FALSE)
-  p<-p+geom_point(size=point_size,alpha=point_opacity)
-  p<-p+facet_wrap(~measure,scales="free_y",nrow=number_of_rows)+ylab("Observed Values")+xlab("Samples")
+  p <- p +
+    geom_boxplot(outlier.size=0,show.legend=FALSE) +
+    # geom_jitter(position = position_jitter(height = 0, width=0),show.legend=FALSE)
+    geom_point(size=point_size, alpha=point_opacity) +
+    facet_wrap(~ measure, labeller = labeller(measure = labels), scales="free_y", nrow=number_of_rows) +
+    ylab("Observed Values") +
+    xlab("Samples")
 
   if(!is.null(df_pw)){
     #This loop will generate the lines and signficances

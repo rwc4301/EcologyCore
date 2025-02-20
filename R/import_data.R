@@ -1,3 +1,7 @@
+import_rds <- function(physeq_path) {
+  return (readRDS(physeq_path))
+}
+
 import_data <- function(biom_path, meta_path, tree_path = NULL, round_abund = FALSE) {
   # Wrap everything in the physeq class and return
   physeq <- NULL
@@ -10,6 +14,9 @@ import_data <- function(biom_path, meta_path, tree_path = NULL, round_abund = FA
   } else {
     physeq <- phyloseq::import_biom(biom_path)
   }
+
+  # abund_table = read.delim("Combined/feature-table.tsv", header = TRUE, row.names = 1, check.names = FALSE, sep = "\t")
+
   meta_table <- read.csv(meta_path, header = TRUE, row.names = 1)
 
   abund_table <- phyloseq::otu_table(physeq)
@@ -126,7 +133,7 @@ expand_otu_names <- function(otu_names, taxa_table, use_short_names = FALSE) {
     names_out <- sapply(otu_names, function(x) {
       # Get taxonomic levels for OTU x, replacing NA with empty strings.
       taxa_levels <- sapply(taxa_table[x, ], function(val) ifelse(is.na(val), "", as.character(val)))
-      
+
       # Attempt to use the "Species" level if available.
       if (!is.null(taxa_levels["Species"]) && taxa_levels["Species"] != "") {
         return(paste(taxa_levels["Genus"], taxa_levels["Species"]))
@@ -145,7 +152,7 @@ expand_otu_names <- function(otu_names, taxa_table, use_short_names = FALSE) {
         }
       }
     })
-    
+
     # Handle duplicates by adding an index
     duplicated_names <- table(names_out)
     for (name in names(duplicated_names)) {
@@ -154,7 +161,7 @@ expand_otu_names <- function(otu_names, taxa_table, use_short_names = FALSE) {
         names_out[indices] <- paste0(names_out[indices], "_", seq_along(indices))
       }
     }
-    
+
     return(names_out)
   }
 }
