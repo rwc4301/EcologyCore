@@ -1,7 +1,7 @@
 ---
 title: "Beta Diversity"
 date: "`r Sys.Date()`"
-runtime: shiny
+runtime: html
 output: 
   html_document:
     fig_width: 16
@@ -27,15 +27,36 @@ devtools::load_all("..")
 
 ```{r params, include=FALSE}
 #### Parameters ####
-biom_path="/Users/reuben/test_data/data/Batch 1/asv_even_taxon.biom"
-meta_path="/Users/reuben/test_data/data/metadata.csv"
-tree_path="/Users/reuben/test_data/data/Batch 1/tree_rooted.nwk"
+rds_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/data/experiment.rds"
 ```
 
-```{r import_data, include=FALSE}
-#### Data Import ####
+```{r data_import, include=FALSE}
 library(phyloseq)
-experiment <- import_data(biom_path, meta_path, tree_path)
+
+#### Data Import ####
+physeq <- import_rds(rds_path)
+
+# Here we choose what taxonomic rank to cluster around
+physeq <- collate_taxonomy_2(physeq, rank = "Genus")
+
+abund_table <- otu_table(physeq, TRUE)
+taxa_table <- tax_table(physeq, TRUE)
+meta_table <- sample_data(physeq, TRUE)
+taxa_tree <- phy_tree(physeq, FALSE)
+
+# We can proceed without a phylogenetic tree but some analyses will be unavailable
+if (is.null(taxa_tree)) {
+  warning("No phylogenetic tree was imported. Proceeding, but some analyses may be unavailable.")
+}
+```
+
+```{r data_check, include=FALSE}
+stopifnot({
+  exists("abund_table")
+  exists("taxa_table")
+  exists("meta_table")
+  exists("taxa_tree")
+})
 ```
 
 # Beta Diversity
@@ -48,57 +69,43 @@ Beta diversity measures indicate differences in species composition between samp
 
 Group samples by run and compare flow conditions.
 
-```{r beta_hypothesis, include=TRUE}
+```{r hypothesis, include=TRUE}
 #### Hypothesis ####
 
-# Hypothesis 1
-label <- "Flow"
-
-#groups <- "run"
-#type <- "sweetening.flow"
-#type2 <- "sweetening.flow"
-#connections <- NULL
-
-sample_data(experiment)$Groups <- as.factor(as.character(paste("Run ", sample_data(experiment)$run)))
-
-sample_data(experiment)$Type <- as.factor(as.character(paste("Flow: ", sample_data(experiment)$sweetening.flow)))
-sample_data(experiment)$Type2 <- as.factor(as.character(paste("Flow: ", sample_data(experiment)$sweetening.flow)))
-
-sample_data(experiment)$Connections <- NULL
+label="xRun"
+meta_table$Groups<-as.factor(as.character(meta_table$run))
+meta_table$Type<-as.factor(as.character(meta_table$sweetening.flow))
+meta_table$Type2<-NULL
+meta_table$Connections<-NULL
 
 PERMANOVA_vars <- c("run", "week", "BED", "wet.vs.dry", "sweetening.flow")
 ```
 
-```{r collate, include=FALSE}
+```{r adjust, include=FALSE}
+# Alpha diversity expects feature table to be a data frame with taxa as columns and samples as rows, so might need some transforming
+
+if (taxa_are_rows(abund_table)) {
+  abund_table <- t(abund_table)
+}
+abund_table <- as.data.frame(abund_table)
+
 #Adjust abund_table to contain only those rows that got selected in the Hypothesis space
-#abund_table<-abund_table[rownames(meta_table),]
+abund_table <- abund_table[rownames(meta_table),]
 #After adjustment, get rid of OTUs that are all empty
-#abund_table<-abund_table[,colSums(abund_table)>0]
+abund_table <- abund_table[,colSums(abund_table) > 0]
 #Adjust OTU taxonomy
-#taxa_table<-taxa_table[colnames(abund_table),]
+taxa_table <- taxa_table[colnames(abund_table),]
 ```
 
-```{r beta_diversity, echo=FALSE}
-selectInput("taxa_rank", label = "Taxa rank:", choices = taxa_ranks, selected = taxa_ranks[1])
+```{r analyse, include=FALSE}
+result <- beta_diversity(physeq, PERMANOVA_variables = PERMANOVA_vars)
+```
 
-plot <- reactive({
-  req(input$taxa_rank)
-  
-  physeq <- collate_taxonomy_2(experiment, input$taxa_rank)
+```{r plot, echo=FALSE}
+p <- plot.ECBetaDiversity(result) + theme_light() + theme(
+  strip.background = element_rect(fill = "#cdcdcd"),
+  strip.text = element_text(color = "black")
+)
 
-  result <- beta_diversity(experiment, PERMANOVA_variables = PERMANOVA_vars, taxa_rank = input$taxa_rank)
-  
-  PCOA <- result[[1]]
-  PCOA_lines <- result[[2]]
-  df_ell <- result[[3]]
-  sol <- result[[4]]
-  
-  rm(result)
-
-  plot <- beta_diversity_plot(PCOA, PCOA_lines, df_ell, sol, vars, meta_table = meta_table)
-})
-
-output$plot <- renderPlot({ plot() })
-
-plotOutput("plot")
+print(p)
 ```

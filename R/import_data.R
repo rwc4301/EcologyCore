@@ -80,7 +80,11 @@ import_data <- function(biom_path, meta_path, tree_path = NULL, round_abund = FA
   }
 
   # Merge the edited tables into a new phyloseq object and return
-  return (phyloseq::merge_phyloseq(phyloseq::otu_table(abund_table), phyloseq::tax_table(as.matrix(taxa_table)), phyloseq::sample_data(meta_table), taxa_tree))
+  return (join_phyloseq(abund_table, taxa_table, meta_table, taxa_tree))
+}
+
+join_phyloseq <- function(abund_table, taxa_table, meta_table, taxa_tree = NULL) {
+  return (phyloseq::merge_phyloseq(phyloseq::otu_table(abund_table, taxa_are_rows = FALSE), phyloseq::tax_table(as.matrix(taxa_table)), phyloseq::sample_data(meta_table), taxa_tree))
 }
 
 # Use to combine multiple phyloseq objects together for example when working with multiple batches

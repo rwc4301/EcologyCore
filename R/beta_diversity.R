@@ -6,7 +6,7 @@
 # library(stringr)
 # library(grid)
 
-beta_diversity <- function(physeq, PERMANOVA_variables, distance_metrics = c("bray", "unifrac", "wunifrac"), taxa_rank = "Species", kind = "se") {
+beta_diversity <- function(physeq, PERMANOVA_variables, distance_metrics = c("bray", "unifrac", "wunifrac"), kind = "se") {
   #Reference: http://stackoverflow.com/questions/13794419/plotting-ordiellipse-function-from-vegan-package-onto-nmds-plot-created-in-ggplo
   #Data frame df_ell contains values to show ellipses. It is calculated with function veganCovEllipse which is hidden in vegan package. This function is applied to each level of NMDS (group) and it uses also function cov.wt to calculate covariance matrix.
   veganCovEllipse<-function (cov, center = c(0, 0), scale = 1, npoints = 100)
@@ -25,19 +25,23 @@ beta_diversity <- function(physeq, PERMANOVA_variables, distance_metrics = c("br
     sample_data(physeq)$Type2 <- sample_data(physeq)$Groups
   }
 
-  meta_table <- as.data.frame(sample_data(physeq))
+  meta_table <- as(sample_data(physeq), "data.frame") # this method is required to coerce sample_data to data.frame
+
+  if (class(meta_table) != "data.frame") {
+    stop(sprintf("Metadata could not be coerced to the correct format; adonis2 requires a 'data.frame' and was given a '%s'", class(meta_table)))
+  }
 
   mds <- list()
   for (d in distance_metrics) {
     # Check we've been given a supported distance metric and error if not
-    if (!(d %in% names(metrics))) {
-      warning(sprintf("Unknown distance metric %s, passing over.", d))
-      next
-    }
-    if (taxa_rank != "Species" && d != "bray") {
-      warning(sprintf("Unsupported taxa rank %s used with distance metric %s, passing over.", taxa_rank, d))
-      next
-    }
+    # if (!(d %in% names(metrics))) {
+    #   warning(sprintf("Unknown distance metric %s, passing over.", d))
+    #   next
+    # }
+    # if (taxa_rank != "Species" && d != "bray") {
+    #   warning(sprintf("Unsupported taxa rank %s used with distance metric %s, passing over.", taxa_rank, d))
+    #   next
+    # }
 
     dist <- phyloseq::distance(physeq, d)
     sol <- cmdscale(dist, eig = TRUE)
@@ -182,14 +186,25 @@ beta_diversity <- function(physeq, PERMANOVA_variables, distance_metrics = c("br
 
   colnames(df_ord)[5] <- "metric"    #weird bug here
 
-  res <- list(PCOA, PCOA_lines, df_ord, mds)
-  class(res) <- "ECBetaDiversity"
-
-  return()
+  return(structure(list(
+    df = PCOA,
+    PCOA_lines = PCOA_lines,
+    df_ord = df_ord,
+    mds = mds,
+    PERMANOVA_variables = PERMANOVA_variables,
+    meta_table = meta_table
+  ), className = "ECBetaDiversity"))
 }
 
 #' @import ggplot2
-plot.ECBetaDiversity <- function(df, PCOA_lines, df_ord, mds, PERMANOVA_variables, meta_table) {
+plot.ECBetaDiversity <- function(value) {
+  df = value$df
+  PCOA_lines = value$PCOA_lines
+  df_ord = value$df_ord
+  mds = value$mds
+  PERMANOVA_variables = value$PERMANOVA_variables
+  meta_table = value$meta_table
+
   point_size = 5
   point_opacity = 0.8
   # number_of_rows = 1
