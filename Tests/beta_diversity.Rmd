@@ -95,6 +95,8 @@ abund_table <- abund_table[rownames(meta_table),]
 abund_table <- abund_table[,colSums(abund_table) > 0]
 #Adjust OTU taxonomy
 taxa_table <- taxa_table[colnames(abund_table),]
+
+physeq <- join_phyloseq(abund_table, taxa_table, meta_table, taxa_tree)
 ```
 
 ```{r analyse, include=FALSE}

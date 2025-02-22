@@ -1,0 +1,189 @@
+---
+title: "Experiment Summary"
+date: "`r Sys.Date()`"
+runtime: html
+output: 
+  html_document:
+    fig_width: 10
+    fig_height: 6
+    fig_caption: true
+    number_sections: true
+    toc: false
+    toc_float:
+      collapsed: false
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+knitr::opts_chunk$set(echo = TRUE)
+
+# For testing
+devtools::load_all("..")
+
+# For production
+# library(EcologyCore)
+
+# Add these packages to the setup
+library(kableExtra)
+library(DT)
+library(plotly)
+library(htmlwidgets)
+```
+
+<style>
+.plotly {
+  margin: auto;
+  display: block;
+}
+</style>
+
+```{r params, include=FALSE}
+#### Parameters ####
+rds_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/data/experiment.rds"
+```
+
+```{r data_import, include=FALSE}
+library(phyloseq)
+
+#### Data Import ####
+physeq <- import_rds(rds_path)
+
+abund_table <- otu_table(physeq, TRUE)
+taxa_table <- tax_table(physeq, TRUE)
+meta_table <- sample_data(physeq, TRUE)
+taxa_tree <- phy_tree(physeq, FALSE)
+
+# We can proceed without a phylogenetic tree but some analyses will be unavailable
+if (is.null(taxa_tree)) {
+  warning("No phylogenetic tree was imported. Proceeding, but some analyses may be unavailable.")
+}
+```
+
+```{r data_check, include=FALSE}
+stopifnot({
+  exists("abund_table")
+  exists("taxa_table")
+  exists("meta_table")
+  exists("taxa_tree")
+})
+```
+
+# Experiment Summary
+
+## Overview
+```{r overview_table, echo=FALSE}
+overview_stats <- data.frame(
+  Metric = c("Total Number of Taxa", "Number of Samples", "Mean Reads per Sample",
+             "Minimum Reads", "Maximum Reads"),
+  Value = c(ntaxa(physeq), 
+            nsamples(physeq),
+            round(mean(sample_sums(physeq))),
+            min(sample_sums(physeq)),
+            max(sample_sums(physeq)))
+)
+
+kable(overview_stats, format = "html", caption = "Experiment Overview") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = TRUE,
+                position = "left") %>%
+  row_spec(0, bold = TRUE, background = "#f8f9fa")
+```
+
+## Sample Distribution
+```{r sample_distribution, echo=FALSE, fig.width=8, fig.height=5}
+library(ggplot2)
+
+# Create read count distribution plot
+sample_sums_df <- data.frame(
+  Sample = names(sample_sums(physeq)),
+  Reads = sample_sums(physeq)
+)
+
+p <- ggplot(sample_sums_df, aes(x = Reads, text = paste("Count:", after_stat(count)))) +
+  geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "Distribution of Read Counts Across Samples",
+       x = "Number of Reads",
+       y = "Number of Samples")
+
+ggplotly(p, tooltip = "text", width = 700, height = 400) %>%
+  layout(hoverlabel = list(bgcolor = "white"))
+```
+
+## Top Taxa
+```{r top_taxa, echo=FALSE, fig.width=8, fig.height=6}
+# Get top 10 most abundant taxa
+top_taxa <- taxa_sums(physeq) %>%
+  sort(decreasing = TRUE) %>%
+  head(10)
+
+top_taxa_df <- data.frame(
+  Taxon = names(top_taxa),
+  Abundance = top_taxa,
+  RelativeAbundance = round(top_taxa / sum(taxa_sums(physeq)) * 100, 2)
+)
+
+# Add taxonomic information
+tax_info <- tax_table(physeq)[top_taxa_df$Taxon, ]
+top_taxa_df$Genus <- tax_info[, "Genus"]
+top_taxa_df$Family <- tax_info[, "Family"]
+
+# Create interactive table for top taxa
+datatable(top_taxa_df[, c("Genus", "Family", "RelativeAbundance")],
+          colnames = c("Genus", "Family", "Relative Abundance (%)"),
+          options = list(
+            pageLength = 10,
+            dom = 'tp',
+            searching = FALSE
+          ),
+          rownames = FALSE,
+          caption = "Top 10 Most Abundant Taxa") %>%
+  formatStyle(columns = 3,
+             background = styleColorBar(top_taxa_df$RelativeAbundance, 'lightblue'),
+             backgroundSize = '98% 88%',
+             backgroundRepeat = 'no-repeat',
+             backgroundPosition = 'center')
+
+# Create bar plot
+p <- ggplot(top_taxa_df, 
+       aes(x = reorder(Genus, RelativeAbundance), 
+           y = RelativeAbundance,
+           text = paste("Genus:", Genus,
+                       "\nFamily:", Family,
+                       "\nAbundance:", sprintf("%.2f%%", RelativeAbundance)))) +
+  geom_bar(stat = "identity", fill = "darkgreen", alpha = 0.7) +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Top 10 Most Abundant Taxa",
+       x = "Genus",
+       y = "Relative Abundance (%)")
+
+ggplotly(p, tooltip = "text", width = 700, height = 500) %>%
+  layout(hoverlabel = list(bgcolor = "white"))
+```
+
+## Sample Metadata Summary
+```{r metadata_summary, echo=FALSE}
+meta_summary <- data.frame(
+  Variable = sample_variables(physeq),
+  Type = sapply(sample_data(physeq), class),
+  Unique_Values = sapply(sample_data(physeq), function(x) length(unique(x)))
+)
+
+# Create an interactive table for metadata
+datatable(meta_summary,
+          options = list(
+            pageLength = 10,
+            dom = 'tp',
+            searching = FALSE
+          ),
+          rownames = FALSE,
+          caption = "Metadata Variables Summary"
+          ) %>%
+  formatStyle(columns = 1:3, 
+             backgroundColor = 'rgb(248, 248, 248)',
+             backgroundSize = '98% 88%',
+             backgroundRepeat = 'no-repeat',
+             backgroundPosition = 'center')
+```
