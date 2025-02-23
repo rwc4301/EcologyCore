@@ -29,12 +29,39 @@ library(kableExtra)
 library(DT)
 library(plotly)
 library(htmlwidgets)
+library(httr)
 ```
 
 <style>
 .plotly {
   margin: auto;
   display: block;
+}
+
+.executive-summary {
+  background-color: #f8f9fa;
+  border-left: 4px solid #4a90e2;
+  padding: 20px 25px;
+  margin: 20px 0;
+  border-radius: 4px;
+}
+
+.summary-header {
+  color: #2c3e50;
+  font-size: 1.5em;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.summary-header i {
+  color: #4a90e2;
+}
+
+.summary-content {
+  color: #444;
+  line-height: 1.6;
 }
 </style>
 
@@ -186,4 +213,86 @@ datatable(meta_summary,
              backgroundSize = '98% 88%',
              backgroundRepeat = 'no-repeat',
              backgroundPosition = 'center')
+```
+
+# ✨ Executive Summary
+
+```{r generate_summary, echo=FALSE, results='asis'}
+generate_ai_summary <- function(context, stats) {
+  # Check for API key in environment
+  api_key <- Sys.getenv("OPENAI_API_KEY")
+  if (api_key == "") {
+    return("Error: OpenAI API key not found. Please set the OPENAI_API_KEY environment variable.")
+  }
+  
+  prompt <- sprintf(
+    "Write a technical summary (2-3 paragraphs) for a metagenomic analysis report with the following context and statistics:
+    
+    Context: %s
+    
+    Key statistics:
+    - Total samples: %d
+    - Distinct taxa: %d
+    - Average reads per sample: %s
+    - Number of time points: %d
+    
+    Focus on the technical aspects and biological significance. Use a professional scientific tone. 
+    Vary the writing style to avoid standardized responses.",
+    context,
+    stats$total_samples,
+    stats$total_taxa,
+    format(stats$mean_reads, big.mark=",", scientific=FALSE),
+    stats$time_points
+  )
+  
+  response <- tryCatch({
+    POST(
+      url = "https://api.openai.com/v1/chat/completions",
+      add_headers(
+        "Authorization" = paste("Bearer", api_key),
+        "Content-Type" = "application/json"
+      ),
+      body = list(
+        model = "gpt-4",
+        messages = list(
+          list(
+            role = "user",
+            content = prompt
+          )
+        ),
+        temperature = 0.7  # Add some randomness to responses
+      ),
+      encode = "json"
+    )
+  }, error = function(e) {
+    return(paste("Error generating summary:", e$message))
+  })
+  
+  if (is.character(response)) {
+    return(response)  # Return error message if request failed
+  }
+  
+  content <- jsonlite::fromJSON(rawToChar(response$content))
+  return(content$choices$message$content)
+}
+
+# Calculate statistics
+stats <- list(
+  total_samples = nsamples(physeq),
+  total_taxa = ntaxa(physeq),
+  mean_reads = round(mean(sample_sums(physeq))),
+  time_points = length(unique(sample_data(physeq)$Sample_Time))
+)
+
+context <- "longitudinal study of Schmutzdecke samples from a pilot scale slow sand filter"
+
+# Generate the summary
+summary_text <- generate_ai_summary(context, stats)
+
+# Output as markdown
+cat('<div class="executive-summary">\n')
+cat('  <div class="summary-content">\n')
+cat(summary_text)
+cat('\n  </div>\n')
+cat('</div>\n\n')
 ```

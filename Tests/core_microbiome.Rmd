@@ -1,7 +1,7 @@
 ---
 title: "Core Taxa"
 date: "`r Sys.Date()`"
-#runtime: shiny
+runtime: html
 output: 
   html_document:
     fig_width: 16
@@ -27,27 +27,36 @@ devtools::load_all("..")
 
 ```{r params, include=FALSE}
 #### Parameters ####
-#biom_path="/Users/reuben/test_data/data/Batch 1/asv_even_taxon.biom"
-#meta_path="/Users/reuben/test_data/data/metadata.csv"
-#tree_path="/Users/reuben/test_data/data/Batch 1/tree_rooted.nwk"
-#grouping_column<-"Groups"
-
-biom_path="data/DADA2/feature_w_tax.biom"
-meta_path="data/meta_table.csv"
-tree_path="data/DADA2/tree.nwk"
+rds_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/data/experiment.rds"
 ```
 
-```{r import_data, include=FALSE}
-#### Data Import ####
+```{r data_import, include=FALSE}
 library(phyloseq)
-#experiment <- import_data(biom_path, meta_path, tree_path)
-experiment <- import_data(biom_path, meta_path)
-#abund_table <- result[[1]]
-#taxa_table <- result[[2]]
-#meta_table <- result[[3]]
-#taxa_tree <- result[[4]]
 
-#rm(result)
+#### Data Import ####
+physeq <- import_rds(rds_path)
+
+# Here we choose what taxonomic rank to cluster around
+physeq <- collate_taxonomy_2(physeq, rank = "Genus")
+
+abund_table <- otu_table(physeq, TRUE)
+taxa_table <- tax_table(physeq, TRUE)
+meta_table <- sample_data(physeq, TRUE)
+taxa_tree <- phy_tree(physeq, FALSE)
+
+# We can proceed without a phylogenetic tree but some analyses will be unavailable
+if (is.null(taxa_tree)) {
+  warning("No phylogenetic tree was imported. Proceeding, but some analyses may be unavailable.")
+}
+```
+
+```{r data_check, include=FALSE}
+stopifnot({
+  exists("abund_table")
+  exists("taxa_table")
+  exists("meta_table")
+  exists("taxa_tree")
+})
 ```
 
 ```{r summary}
