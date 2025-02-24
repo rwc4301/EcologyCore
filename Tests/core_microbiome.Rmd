@@ -85,6 +85,8 @@ stopifnot({
 
 ## Overview
 
+This plot shows the top 25 most abundant genera in each sample. Samples are grouped by run.
+
 ```{r core_taxa, echo=FALSE}
 data <- taxa_bars(physeq, group_by = "run")
 
@@ -93,29 +95,176 @@ print(plot.ECTaxaBars(data))
 
 The core microbiome captures the set of microbial taxa consistently found across a given group of samples.
 
-<https://www.pnas.org/doi/full/10.1073/pnas.2104429118#body-ref-r48>
+<https://doi.org/10.1073/pnas.2104429118>
 
 ## Abundance-Occupancy Model
 
-```{r core, include=FALSE}
+In this section, the core microbiome is given for each group. The core microbiome is defined according to recommendations in this paper, as those taxa which occupy a high proportion of samples and which make a large contribution to beta diversity within those samples. This is intended to capture taxa which play a pivotal role in shaping the microbial community.
+
+Unlike other core models, there is no hard occupancy cut-off. This means that the model captures low abundance taxa which may fall below a standard occupancy threshold due to sampling bias, but which otherwise remain important in shaping the microbial community.
+
+### Run 1
+
+```{r, include=FALSE}
 sample_variables(physeq)
 
 core <- core_microbiome(physeq, group_by = "run", group = "Run 1")
 ```
 
-```{r core_oa_plot, echo=FALSE}
+```{r, echo=FALSE}
 p <- plot_theme_default(plot.ECCOccupancyAbundance(core))
 p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
 print(p)
 ```
 
-```{r core_rs_plot, echo=FALSE}
-plot.ECCRankedSimilarity(core)
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCoreMicrobiome(core, horizontal = FALSE))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+
+print(p)
 ```
 
-These species play an active role in shaping the ecological community.
+### Run 2
 
-```{r core_rs_plot, echo=FALSE}
+```{r, include=FALSE}
+sample_variables(physeq)
+
+core <- core_microbiome(physeq, group_by = "run", group = "Run 2")
+```
+
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCOccupancyAbundance(core))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+print(p)
+```
+
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCoreMicrobiome(core, horizontal = FALSE))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+
+print(p)
+```
+
+### Run 3
+
+```{r, include=FALSE}
+sample_variables(physeq)
+
+core <- core_microbiome(physeq, group_by = "run", group = "Run 3")
+```
+
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCOccupancyAbundance(core))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+print(p)
+```
+
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCoreMicrobiome(core, horizontal = FALSE))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+
+print(p)
+```
+
+### Run 4
+
+```{r, include=FALSE}
+sample_variables(physeq)
+
+core <- core_microbiome(physeq, group_by = "run", group = "Run 4")
+```
+
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCOccupancyAbundance(core))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+print(p)
+```
+
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCoreMicrobiome(core, horizontal = FALSE))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+
+print(p)
+```
+
+### Run 5
+
+```{r, include=FALSE}
+sample_variables(physeq)
+
+core <- core_microbiome(physeq, group_by = "run", group = "Run 5")
+```
+
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCOccupancyAbundance(core))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+print(p)
+```
+
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCoreMicrobiome(core, horizontal = FALSE))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+
+print(p)
+```
+
+### Run 6
+
+```{r, include=FALSE}
+sample_variables(physeq)
+
+core <- core_microbiome(physeq, group_by = "run", group = "Run 6")
+```
+
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCOccupancyAbundance(core))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+print(p)
+```
+
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCoreMicrobiome(core, horizontal = FALSE))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+
+print(p)
+```
+
+### Run 7
+
+```{r, include=FALSE}
+sample_variables(physeq)
+
+core <- core_microbiome(physeq, group_by = "run", group = "Run 7")
+```
+
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCOccupancyAbundance(core))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+print(p)
+```
+
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCoreMicrobiome(core, horizontal = FALSE))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+
+print(p)
+```
+
+### Run 8
+
+```{r, include=FALSE}
+sample_variables(physeq)
+
+core <- core_microbiome(physeq, group_by = "run", group = "Run 8")
+```
+
+```{r, echo=FALSE}
+p <- plot_theme_default(plot.ECCOccupancyAbundance(core))
+p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+print(p)
+```
+
+```{r, echo=FALSE}
 p <- plot_theme_default(plot.ECCoreMicrobiome(core, horizontal = FALSE))
 p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
 
