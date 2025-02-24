@@ -25,7 +25,9 @@
 #' @import tibble
 #' @import dplyr
 #' @import tidyr
-core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
+core_microbiome <- function(physeq, group_by = NULL, group = "All", model = "occ_abund", model_threshold = 2) {
+  library(dplyr)
+
   # Add input validation
   if (is.null(physeq)) {
     stop("Input phyloseq object cannot be NULL")
@@ -61,40 +63,22 @@ core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
   #TODO: check SampleID column doesn't exist first
   meta_table$SampleID <- rownames(meta_table)
 
-  # TODO: clean up hypothesis testing
-  # label="Hypothesis All"
-  # meta_table$Groups<-"All"
-  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
+  # TODO: cycle multiple groups in hypothesis testing
+  if (is.null(group_by)) {
+    meta_table["Groups"] <- "All"
+  } else {
+    meta_table["Groups"] <- meta_table[, group_by]
+  }
 
-  # #Hypothesis 1
-  # label="Excavated Scoop Hole"
-  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
-  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
-  # meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  May","Excavated Scoop Hole  July"),]
+  if (!(group %in% meta_table$Groups)) {
+    stop(sprintf("Couldn't subset samples, no group found with name %s in column %s", group, group_by))
+  } else {
+    meta_table <- meta_table[meta_table$Groups == group,]
+  }
 
-  # #Hypothesis 2
-  # label="Community Scoop Hole"
-  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
-  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
-  # meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole May","Community Scoop Hole July"),]
-
-  # #Hypothesis 3
-  # label="Hand Pump"
-  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
-  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
-  # meta_table<-meta_table[meta_table$Groups %in% c("Hand Pump May","Hand Pump July"),]
-
-  # #Hypothesis 4
-  # label="Open Well"
-  # meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
-  # meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
-  # meta_table<-meta_table[meta_table$Groups %in% c("Open Well May","Open Well July"),]
-
-  # # #Hypothesis 5
-  label="Downstream"
-  meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
-  meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
-  meta_table<-meta_table[meta_table$Groups %in% c("Downstream May","Downstream July"),]
+  if (length(unique(meta_table$Groups)) == 1) {
+    label <- meta_table$Groups[1]
+  }
 
   # Validate that sample names exist in abundance table
   valid_samples <- intersect(rownames(meta_table), colnames(abund_table))
@@ -116,13 +100,13 @@ core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
   otu_occ <- rowSums(otu_PA)/ncol(otu_PA)                                       # occupancy calculation
 
   # Modify the relative abundance calculation to avoid NaN
-  otu_rel <- apply(decostand(abund_table, method="total", MARGIN=2), 1, function(x) {
+  otu_rel <- apply(vegan::decostand(abund_table, method="total", MARGIN=2), 1, function(x) {
     if (all(is.na(x))) return(0)
     mean(x, na.rm = TRUE)
   })
 
   occ_abund_table <- data.frame(otu_occ=otu_occ, otu_rel=otu_rel) %>%           # combining occupancy and abundance data frame
-    rownames_to_column('otu')
+    tibble::rownames_to_column('otu')
 
   # # Collate response and set class name
   # res <- list(abund_table = abund_table, occ_abund_table = occ_abund_table)
@@ -131,7 +115,7 @@ core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
   otu <- abund_table
 
   PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
-    gather(SampleID, abun, -otu) %>%
+    tidyr::gather(SampleID, abun, -otu) %>%
     left_join(meta_table, by = 'SampleID') %>%
     group_by(otu, Groups) %>%   # maybe group by type instead
     summarise(time_freq=sum(abun>0)/length(abun),            # frequency of detection between time points
@@ -152,7 +136,6 @@ core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
   BCaddition <- NULL
 
   # Modified original script to accept non-rarefied data
-  library(dplyr)
 
   # Pre-calculate the total counts for each sample from the full OTU table
   sample_totals <- colSums(otu)
@@ -161,7 +144,7 @@ core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
 
   otu_start <- otu_ranked$otu[1]
   start_matrix <- as.matrix(otu[otu_start, ])
-  start_matrix <- t(start_matrix)  # Now rows correspond to the first OTU's abundances per sample
+  #start_matrix <- t(start_matrix)  # Now rows correspond to the first OTU's abundances per sample
 
   # Calculate Bray-Curtis dissimilarity for each pair of samples,
   # but normalize by the full sample totals
@@ -185,7 +168,7 @@ core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
     # Ensure the OTU identifier is treated as a character string
     otu_add <- as.character(otu_ranked$otu[i])
     add_matrix <- as.matrix(otu[otu_add, ])
-    add_matrix <- t(add_matrix)
+    #add_matrix <- t(add_matrix)
 
     # Append the new OTU's counts (as a row) to our cumulative matrix.
     start_matrix <- rbind(start_matrix, add_matrix)
@@ -265,7 +248,7 @@ core_microbiome <- function(physeq, model = "occ_abund", model_threshold = 2) {
   temp_BC_matrix <- as.matrix(temp_BC)
 
   BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))),t(temp_BC_matrix)) %>%
-    gather(comparison, BC, -rank) %>%
+    tidyr::gather(comparison, BC, -rank) %>%
     group_by(rank) %>%
     summarise(MeanBC=mean(BC)) %>%            # mean Bray-Curtis dissimilarity
     arrange(desc(-MeanBC)) %>%
@@ -461,7 +444,7 @@ plot.ECCoreMicrobiome <- function(value, what_detection = "absolute", horizontal
   return(p)
 
 
-  # otu_relabun <- decostand(otu, method="total", MARGIN=2)
+  # otu_relabun <- vegan::decostand(otu, method="total", MARGIN=2)
   #
   # plotDF <- data.frame(otu = as.factor(row.names(otu_relabun)), otu_relabun) %>%
   #   gather(SampleID, relabun, -otu) %>%
@@ -484,20 +467,27 @@ plot.ECCoreMicrobiome <- function(value, what_detection = "absolute", horizontal
   #   scale_fill_npg()
 }
 
-core_taxa <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree, N = 25) {
-  # TODO: remove
-  grouping_column <- "Groups"
-
+taxa_bars <- function(physeq, group_by = NULL, N = 25, which_level = "Genus") {
   # Process input data
-  # abund_table <- phyloseq::otu_table(physeq)
-  # meta_table <- phyloseq::sample_data(physeq)
-  # OTU_taxonomy <- phyloseq::tax_table(physeq)
-  # OTU_tree <- phyloseq::phy_tree(physeq)
+  abund_table <- phyloseq::otu_table(physeq)
+  meta_table <- phyloseq::sample_data(physeq)
+  OTU_taxonomy <- phyloseq::tax_table(physeq)
+  OTU_tree <- phyloseq::phy_tree(physeq)
+
+  # taxa should be columns
+  if (phyloseq::taxa_are_rows(physeq)) {
+    abund_table <- t(abund_table)
+  }
+
+  if (is.null(group_by)) {
+    meta_table["Groups"] <- "All"
+  } else {
+    meta_table["Groups"] <- meta_table[, group_by]
+  }
 
   #Apply proportion normalisation
   x<-abund_table/rowSums(abund_table)
   x<-x[,order(colSums(x),decreasing=TRUE)]
-
 
   taxa_list<-colnames(x)[1:min(dim(x)[2],N)]
   if (c("__Unknowns__") %in% taxa_list){
@@ -521,10 +511,21 @@ core_taxa <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree, N = 25) {
     }
   }
 
-  df<-NULL
-  for (i in 1:dim(new_x)[2]){
-    tmp<-data.frame(row.names=NULL,Sample=rownames(new_x),Taxa=rep(colnames(new_x)[i],dim(new_x)[1]),Value=new_x[,i],Groups=meta_table$Groups)
-    if(i==1){df<-tmp} else {df<-rbind(df,tmp)}
+  df <- NULL
+  for (i in 1:dim(new_x)[2]) {
+    tmp <- data.frame(
+      row.names = NULL,
+      Sample = rownames(new_x),
+      Taxa = rep(colnames(new_x)[i], dim(new_x)[1]),
+      Value = new_x[,i],
+      Groups = meta_table$Groups
+    )
+
+    if (i == 1) {
+      df <- tmp
+    } else {
+      df <- rbind(df, tmp)
+    }
   }
   colours <- c("#F0A3FF", "#0075DC", "#993F00","#4C005C","#2BCE48","#FFCC99","#808080","#94FFB5","#8F7C00","#9DCC00","#C20088","#003380","#FFA405","#FFA8BB","#426600","#FF0010","#5EF1F2","#00998F","#740AFF","#990000","#FFFF00",rainbow(300)[seq(1,300,6)]);
 
@@ -532,10 +533,10 @@ core_taxa <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree, N = 25) {
   # cat(paste("levels=c(",paste(paste("\"",unique(as.character(df$Sample)),"\"",sep=""),collapse=","),")",sep=""))
   # then use df$Sample<-factor(as.character(df$Sample),levels=c()) list
 
-  return(df)
+  return(structure(list(df = df), className = "ECTaxaBars"))
 }
 
-plot_core_taxa <- function(df, N = 25, switch_strip = "x", legend_columns = 1) {
+plot.ECTaxaBars <- function(value, N = 25, switch_strip = "x", legend_columns = 1) {
   reveal_sample_names=TRUE
   legend_text_size=20
   axis_title_size=30
@@ -545,7 +546,7 @@ plot_core_taxa <- function(df, N = 25, switch_strip = "x", legend_columns = 1) {
   height_image=25
   width_image=60
 
-  p <- ggplot(df, aes(Sample, Value, fill = Taxa)) +
+  p <- ggplot(value$df, aes(Sample, Value, fill = Taxa)) +
     geom_bar(stat = "identity") +
     facet_grid(. ~ Groups, drop = TRUE, scale = "free", space = "free_x", switch = switch_strip) +
     scale_fill_manual(values = colours[1:(N+1)], guide = guide_legend(ncol = legend_columns)) +

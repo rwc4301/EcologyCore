@@ -27,7 +27,7 @@ devtools::load_all("..")
 
 ```{r params, include=FALSE}
 #### Parameters ####
-rds_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/data/experiment.rds"
+rds_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/data/experiment_genus.rds"
 ```
 
 ```{r data_import, include=FALSE}
@@ -37,32 +37,23 @@ library(phyloseq)
 physeq <- import_rds(rds_path)
 
 # Here we choose what taxonomic rank to cluster around
-physeq <- collate_taxonomy_2(physeq, rank = "Genus")
+#physeq <- collate_taxonomy_fast(physeq, rank = "Genus")
 
-abund_table <- otu_table(physeq, TRUE)
-taxa_table <- tax_table(physeq, TRUE)
-meta_table <- sample_data(physeq, TRUE)
-taxa_tree <- phy_tree(physeq, FALSE)
+#abund_table <- otu_table(physeq, TRUE)
+#taxa_table <- tax_table(physeq, TRUE)
+#meta_table <- sample_data(physeq, TRUE)
+#taxa_tree <- phy_tree(physeq, FALSE)
 
 # We can proceed without a phylogenetic tree but some analyses will be unavailable
-if (is.null(taxa_tree)) {
+if (is.null(phy_tree(physeq, FALSE))) {
   warning("No phylogenetic tree was imported. Proceeding, but some analyses may be unavailable.")
 }
 ```
 
 ```{r data_check, include=FALSE}
 stopifnot({
-  exists("abund_table")
-  exists("taxa_table")
-  exists("meta_table")
-  exists("taxa_tree")
+  exists("physeq")
 })
-```
-
-```{r summary}
-read_counts <- sample_sums(experiment)
-
-summary(read_counts)
 ```
 
 ```{r qpcr}
@@ -70,44 +61,46 @@ summary(read_counts)
 # The Sloan neutral model we're using assumes a constant coomunity size (N), but library sizes can vary by orders of magnitude between samples
 # So, we have two options: either rarefy the data, or in this case we have total microbial count data in the form of 16S qPCR results, which we can use to give us a mean value for microbial counts
 
-ta <- as.data.frame(otu_table(experiment))
-ma <- metadata_frame(experiment)
+#ta <- as.data.frame(otu_table(experiment))
+#ma <- metadata_frame(experiment)
 
-library_size <- as.data.frame(rowSums(ta))
+#library_size <- as.data.frame(rowSums(ta))
 
-ta_scaled <- as.matrix(ta) * as.numeric(as.character(ma[row.names(ta), "qPCR_16S_per_ml"])) / as.numeric(as.character(library_size[row.names(library_size), "rowSums(ta)"]))
+#ta_scaled <- as.matrix(ta) * as.numeric(as.character(ma[row.names(ta), "qPCR_16S_per_ml"])) / as.numeric(as.character(library_size[row.names(library_size), "rowSums(ta)"]))
 
-ta_scaled_f <- t(ta_scaled)
+#ta_scaled_f <- t(ta_scaled)
 
-total_reads <- colSums(ta_scaled_f)
+#total_reads <- colSums(ta_scaled_f)
 
-total_reads_df <- data.frame(Sample = names(total_reads), TotalReads = total_reads)
+#total_reads_df <- data.frame(Sample = names(total_reads), TotalReads = total_reads)
 
-p <- ggplot(total_reads_df, aes(x = TotalReads)) + geom_density()
+#p <- ggplot(total_reads_df, aes(x = TotalReads)) + geom_density()
 
-print(p)
+#print(p)
 
-mean_N <- mean(total_reads)
+#mean_N <- mean(total_reads)
 ```
 
 # Core Microbiome
+
+## Overview
+
+```{r core_taxa, echo=FALSE}
+data <- taxa_bars(physeq, group_by = "run")
+
+print(plot.ECTaxaBars(data))
+```
 
 The core microbiome captures the set of microbial taxa consistently found across a given group of samples.
 
 <https://www.pnas.org/doi/full/10.1073/pnas.2104429118#body-ref-r48>
 
-```{r}
-experiment <- collate_taxonomy_2(experiment, rank = "Genus")
-```
-
 ## Abundance-Occupancy Model
 
 ```{r core, include=FALSE}
-csh <- core_microbiome(experiment)
-dsp <- core_microbiome(experiment)
-esh <- core_microbiome(experiment)
-hp <- core_microbiome(experiment)
-ow <- core_microbiome(experiment)
+sample_variables(physeq)
+
+core <- core_microbiome(physeq, group_by = "run", group = "Run 1")
 ```
 
 ```{r core_oa_plot, echo=FALSE}
@@ -128,56 +121,3 @@ p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), 
 
 print(p)
 ```
-
-## Abundance
-
-```{r core_hypothesis, include=TRUE}
-#### Hypothesis ####
-
-# Hypothesis 1
-label="Abstraction_Method"
-
-meta_table$Groups <- as.factor(as.character(paste("Run ", meta_table$run)))
-
-meta_table$Type <- NULL
-meta_table$Type2 <- NULL
-meta_table$Connections <- NULL
-```
-
-```{r collate, include=FALSE}
-#Adjust abund_table to contain only those rows that got selected in the Hypothesis space
-abund_table<-abund_table[rownames(meta_table),]
-#After adjustment, get rid of OTUs that are all empty
-abund_table<-abund_table[,colSums(abund_table)>0]
-#Adjust OTU taxonomy
-taxa_table<-taxa_table[colnames(abund_table),]
-```
-
-```{r core_microbiome, echo=FALSE}
-# Loop through and create a core plot for each unique group
-plots <- list()
-for (group in unique(meta_table$Groups)) {
-  meta_sub <- meta_table[meta_table$Groups == group,]
-  
-  data <- core_microbiome(abund_table, meta_sub, taxa_table, taxa_tree, what_detection = "absolute", short_names = TRUE)
-  
-  plots <- append(plots, list(data))
-}
-
-print(do.call(gridExtra::grid.arrange, plots))
-```
-
-## Taxa Bars
-
-```{r core_taxa, echo=FALSE}
-data <- core_taxa(abund_table, meta_table, taxa_table, taxa_tree)
-plot <- plot_core_taxa(data)
-
-print(plot)
-```
-
-## Abundance-Occupancy Models
-
-## Hypothesis Setting
-
-## Plots

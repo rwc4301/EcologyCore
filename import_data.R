@@ -59,4 +59,43 @@ expand_otu_names <- function(otu_names, taxa_table, use_short_names = FALSE) {
     
     return(names_out)
   }
+}
+
+collate_taxonomy_fast <- function(physeq, rank = "Species") {
+  if (!rank %in% phyloseq::rank_names(physeq)) {
+    stop(sprintf("Tried to collate taxonomy around unknown rank %s", rank))
+  }
+  
+  # Ensure data.table is loaded
+  require(data.table)
+  
+  # Convert to data.table format with proper scoping
+  otu_tab <- data.table::setDT(as.data.frame(phyloseq::otu_table(physeq)))
+  tax_tab <- data.table::setDT(as.data.frame(phyloseq::tax_table(physeq)))
+  
+  # Add taxonomy column to abundance data (fixed syntax)
+  otu_tab[, "tax_group" := tax_tab[[rank]]]
+  
+  # Aggregate by taxonomic group
+  agg_tab <- otu_tab[, lapply(.SD, sum), 
+                     by = "tax_group",
+                     .SDcols = names(otu_tab)[names(otu_tab) != "tax_group"]]
+  
+  # Convert back to phyloseq format
+  otu_mat <- as.matrix(agg_tab[, .SD, .SDcols = names(agg_tab)[names(agg_tab) != "tax_group"]])
+  rownames(otu_mat) <- agg_tab$tax_group
+  
+  # Create new taxonomy table - fill with NA except for the aggregated rank
+  tax_mat <- matrix(NA, 
+                   nrow = nrow(agg_tab),
+                   ncol = ncol(tax_tab),
+                   dimnames = list(agg_tab$tax_group, colnames(tax_tab)))
+  tax_mat[, rank] <- agg_tab$tax_group
+  
+  # Return new phyloseq object
+  return(phyloseq::phyloseq(
+    phyloseq::otu_table(otu_mat, taxa_are_rows = TRUE),
+    phyloseq::tax_table(tax_mat),
+    phyloseq::sample_data(physeq)
+  ))
 } 

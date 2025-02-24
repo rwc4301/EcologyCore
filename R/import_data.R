@@ -212,6 +212,41 @@ collate_taxonomy <- function(abund_table, taxa_table, rank = "Species") {
   return(new_abund_table)
 }
 
+collate_taxonomy_fast <- function(physeq, rank = "Species") {
+  if (!rank %in% phyloseq::rank_names(physeq)) {
+    stop(sprintf("Tried to collate taxonomy around unknown rank %s", rank))
+  }
+
+  # Convert to data.table format
+  require(data.table)
+  otu_tab <- as.data.table(as.data.frame(phyloseq::otu_table(physeq)))
+  tax_tab <- as.data.table(as.data.frame(phyloseq::tax_table(physeq)))
+
+  # Add taxonomy column to abundance data
+  otu_tab[, tax_group := tax_tab[[rank]]]
+
+  # Aggregate by taxonomic group
+  agg_tab <- otu_tab[, lapply(.SD, sum),
+                     by = tax_group,
+                     .SDcols = names(otu_tab)[1:(ncol(otu_tab)-1)]]
+
+  # Convert back to phyloseq format
+  otu_mat <- as.matrix(agg_tab[, -"tax_group"])
+  rownames(otu_mat) <- agg_tab$tax_group
+
+  # Create new taxonomy table
+  tax_mat <- matrix(agg_tab$tax_group,
+                    ncol = ncol(tax_tab),
+                    dimnames = list(agg_tab$tax_group, colnames(tax_tab)))
+
+  # Return new phyloseq object
+  return(phyloseq::phyloseq(
+    phyloseq::otu_table(otu_mat, taxa_are_rows = TRUE),
+    phyloseq::tax_table(tax_mat),
+    phyloseq::sample_data(physeq)
+  ))
+}
+
 to_phyloseq <- function(abund_table, OTU_taxonomy, meta_table, taxa_tree, taxa_rank) {
   #Convert the data back to phyloseq format
   OTU = phyloseq::otu_table(as.matrix(abund_table), taxa_are_rows = FALSE)
