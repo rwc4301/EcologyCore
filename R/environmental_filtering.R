@@ -134,10 +134,16 @@ environmental_filtering <- function(abund_table, meta_table, OTU_taxonomy, OTU_t
     names(df_pw)<-c("measure","from","to","y","p")
   }
 
-  return(df)
+  return(structure(list(df = df, df_pw = df_pw, pval = pval, meta_table = meta_table), className = "ECEnvironmentalFiltering"))
 }
 
-plot_environmental_filtering <- function(df) {
+plot.ECEnvironmentalFiltering <- function(value) {
+  df <- value$df
+  df_pw <- value$df_pw
+  meta_table <- value$meta_table
+
+  grouping_column = "Groups"
+
   #Get rid of NA columns
   df<-df[complete.cases(df$value),]
 
@@ -204,7 +210,5 @@ plot_environmental_filtering <- function(df) {
              #axis.text.x=element_blank(),
              axis.ticks.x=element_blank())
 
-  pdf(paste("PC_vs_OD","_",second_label,"_",label,"_",null.model,".pdf",sep=""),height=height_image,width=width_image)
-  print(p)
-  dev.off()
+  return (p)
 }

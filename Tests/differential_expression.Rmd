@@ -1,7 +1,16 @@
 ---
-title: "Differential Expression"
-output: html_document
+title: "Differential Abundance"
 date: "`r Sys.Date()`"
+runtime: html
+output: 
+  html_document:
+    fig_width: 16
+    fig_height: 10
+    fig_caption: true
+    number_sections: true
+    toc: false
+    toc_float:
+      collapsed: false
 ---
 
 ```{r setup, include=FALSE}
@@ -18,199 +27,102 @@ devtools::load_all("..")
 
 ```{r params, include=FALSE}
 #### Parameters ####
-
-biom_path <- "/Users/reuben/Dropbox/Cindy_Alison_Umer_SandDam/data/DADA2/feature_w_tax.biom"
-meta_path <- "/Users/reuben/Dropbox/Cindy_Alison_Umer_SandDam/data/meta_table.csv"
-tree_path <- "/Users/reuben/Dropbox/Cindy_Alison_Umer_SandDam/data/DADA2/tree.nwk"
-grouping_column <- "Groups"
+rds_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/data/experiment_genus.rds"
 
 which_level<-"Otus" #Phylum Class Order Family Genus Otus
 sig = 0.05
 fold = 2
 height_image=15
-
 ```
 
-## Core Microbiome
+```{r data_import, include=FALSE, echo=TRUE}
+library(phyloseq)
 
-This notebook uses the EcologyCore API to generate core microbiome plots from a .biom file.
-
-```{r data, include=FALSE}
 #### Data Import ####
+physeq <- import_rds(rds_path)
 
-result <- import_data(biom_path, meta_path, tree_path)
+# Here we choose what taxonomic rank to cluster around
+# physeq <- collate_taxonomy_2(physeq, rank = "Genus")
 
-abund_table <- result[[1]]
-OTU_taxonomy <- result[[2]]
-meta_table <- result[[3]]
-OTU_tree <- result[[4]]
+abund_table <- otu_table(physeq, TRUE)
+taxa_table <- tax_table(physeq, TRUE)
+meta_table <- sample_data(physeq, TRUE)
+taxa_tree <- phy_tree(physeq, FALSE)
 
-rm(result)
+# We can proceed without a phylogenetic tree but some analyses will be unavailable
+if (is.null(taxa_tree)) {
+  warning("No phylogenetic tree was imported. Proceeding, but some analyses may be unavailable.")
+}
 ```
 
-## Setting up Hypotheses
-
-The hypothesis space sets up comparison groups for the analysis.
-
-All you need to do is select the metadata columns you are interested in comparing and the code groups samples by the values in these columns.
-
-Additionally, you can allocate a column to Connections if the data is paired.
+```{r data_check, include=FALSE}
+stopifnot({
+  exists("abund_table")
+  exists("taxa_table")
+  exists("meta_table")
+  exists("taxa_tree")
+})
+```
 
 ```{r hypothesis, include=FALSE}
-#### Hypothesis ####
-
-meta_table<-meta_table[!meta_table$Within_Dam_Sample %in% c("Piezometer"),]
-meta_table$Groups<-paste(meta_table$Within_Dam_Sample,meta_table$Sample_Time)
-
+meta_table$Groups<-as.factor(as.character(meta_table$run))
 
 #Hypothesis 1
-labels="Excavated_scoop_hole"
-meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  May","Excavated Scoop Hole  July"),]
-meta_table$Groups<-factor(meta_table$Groups,levels=c("Excavated Scoop Hole  May","Excavated Scoop Hole  July"))
+labels="Run 1"
+meta_table<-meta_table[meta_table$Groups %in% c("Run 1"),]
 
-# #Hypothesis 2
-# labels="Community_scoop_hole"
-# meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole May","Community Scoop Hole July"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Community Scoop Hole May","Community Scoop Hole July"))
+#Hypothesis 2
+labels="Run 2"
+meta_table<-meta_table[meta_table$Groups %in% c("Run 2"),]
 
-# #Hypothesis 3
-# labels="Hand_pump"
-# meta_table<-meta_table[meta_table$Groups %in% c("Hand Pump May","Hand Pump July"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Hand Pump May","Hand Pump July"))
+#Hypothesis 3
+labels="Run 3"
+meta_table<-meta_table[meta_table$Groups %in% c("Run 3"),]
 
-# #Hypothesis 4
-# labels="Open_well"
-# meta_table<-meta_table[meta_table$Groups %in% c("Open Well May","Open Well July"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Open Well May","Open Well July"))
+#Hypothesis 4
+labels="Run 4"
+meta_table<-meta_table[meta_table$Groups %in% c("Run 4"),]
 
-# #Hypothesis 5
-# labels="Downstream"
-# meta_table<-meta_table[meta_table$Groups %in% c("Downstream May","Downstream July"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Downstream May","Downstream July"))
+#Hypothesis 5
+labels="Run 5"
+meta_table<-meta_table[meta_table$Groups %in% c("Run 5"),]
 
-# #Hypothesis 6
-# labels="Excavated Scoop Hole  May_Community Scoop Hole May"
-# meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  May","Community Scoop Hole May"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Excavated Scoop Hole  May","Community Scoop Hole May"))
+#Hypothesis 6
+labels="Run 6"
+meta_table<-meta_table[meta_table$Groups %in% c("Run 6"),]
 
-# #Hypothesis 7
-# labels="Excavated Scoop Hole  May_Open Well May"
-# meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  May","Open Well May"  ),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Excavated Scoop Hole  May","Open Well May"  ))
+#Hypothesis 7
+labels="Run 7"
+meta_table<-meta_table[meta_table$Groups %in% c("Run 7"),]
 
-# #Hypothesis 8
-# labels="Excavated Scoop Hole  May_Hand Pump May"
-# meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  May","Hand Pump May" ),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Excavated Scoop Hole  May","Hand Pump May" ))
+#Hypothesis 8
+labels="Run 8"
+meta_table<-meta_table[meta_table$Groups %in% c("Run 8"),]
+```
 
-# #Hypothesis 9
-# labels="Excavated Scoop Hole  May_Downstream May"
-# meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  May","Downstream May" ),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Excavated Scoop Hole  May","Downstream May" ))
-
-# #Hypothesis 10
-# labels="Community Scoop Hole May_Open Well May"
-# meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole May","Open Well May" ),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Community Scoop Hole May","Open Well May" ))
-
-# #Hypothesis 11
-# labels="Community Scoop Hole May_Hand Pump May"
-# meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole May","Hand Pump May"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Community Scoop Hole May","Hand Pump May"))
-
-# #Hypothesis 12
-# labels="Community Scoop Hole May_Downstream May"
-# meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole May","Downstream May"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Community Scoop Hole May","Downstream May") )
-
-# #Hypothesis 13
-# labels="Open Well May_Hand Pump May"
-# meta_table<-meta_table[meta_table$Groups %in% c("Open Well May","Hand Pump May"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Open Well May","Hand Pump May"))
-
-# #Hypothesis 14
-# labels="Open Well May_Downstream May"
-# meta_table<-meta_table[meta_table$Groups %in% c("Open Well May","Downstream May"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Open Well May","Downstream May"))
-
-# #Hypothesis 15
-# labels="Hand Pump May_Downstream May"
-# meta_table<-meta_table[meta_table$Groups %in% c("Hand Pump May","Downstream May"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Hand Pump May","Downstream May"))
-
-# #Hypothesis 16
-# labels="Community Scoop Hole July_Excavated Scoop Hole  July"
-# meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole July","Excavated Scoop Hole  July"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Community Scoop Hole July","Excavated Scoop Hole  July"))
-
-# #Hypothesis 17
-# labels="Community Scoop Hole July_Hand Pump July"
-# meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole July","Hand Pump July"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Community Scoop Hole July","Hand Pump July"))
-
-# #Hypothesis 18
-# labels="Community Scoop Hole July_Open Well July"
-# meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole July","Open Well July"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Community Scoop Hole July","Open Well July"))
-
-# #Hypothesis 19
-# labels="Community Scoop Hole July_Downstream July"
-# meta_table<-meta_table[meta_table$Groups %in% c("Community Scoop Hole July","Downstream July"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Community Scoop Hole July","Downstream July"))
-
-# #Hypothesis 20
-# labels="Excavated Scoop Hole  July_Hand Pump July"
-# meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  July", "Hand Pump July"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Excavated Scoop Hole  July", "Hand Pump July"))
-
-# #Hypothesis 21
-# labels="Excavated Scoop Hole  July_Open Well July"
-# meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  July","Open Well July" ),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Excavated Scoop Hole  July","Open Well July" ))
-
-# #Hypothesis 22
-# labels="Excavated Scoop Hole  July_Downstream July"
-# meta_table<-meta_table[meta_table$Groups %in% c("Excavated Scoop Hole  July", "Downstream July"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Excavated Scoop Hole  July", "Downstream July"))
-
-# #Hypothesis 23
-# labels="Hand Pump July_Open Well July"
-# meta_table<-meta_table[meta_table$Groups %in% c("Hand Pump July","Open Well July"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Hand Pump July","Open Well July"))
-
-# #Hypothesis 24
-# labels="Hand Pump July_Downstream July"
-# meta_table<-meta_table[meta_table$Groups %in% c("Hand Pump July","Downstream July"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Hand Pump July","Downstream July"))
-
-# #Hypothesis 25
-# labels="Open Well July_Downstream July"
-# meta_table<-meta_table[meta_table$Groups %in% c("Open Well July","Downstream July"),]
-# meta_table$Groups<-factor(meta_table$Groups,levels=c("Open Well July","Downstream July") )
-
-
+```{r adjust, include=FALSE}
+if (taxa_are_rows(abund_table)) {
+  abund_table <- t(abund_table)
+}
+abund_table <- as.data.frame(abund_table)
 
 #Adjust abund_table to contain only those rows that got selected in the Hypothesis space
-abund_table<-abund_table[rownames(meta_table),]
+abund_table <- abund_table[rownames(meta_table),]
 #After adjustment, get rid of OTUs that are all empty
-abund_table<-abund_table[,colSums(abund_table)>0]
+abund_table <- abund_table[,colSums(abund_table) > 0]
 #Adjust OTU taxonomy
-OTU_taxonomy<-OTU_taxonomy[colnames(abund_table),]
+taxa_table <- taxa_table[colnames(abund_table),]
 ```
 
-## Collate Taxonomy
+# Differential Abundance
 
-This function is included in every analysis and serves to coalesce values in the abundance table at whatever taxonomic rank you specify.
+If the core determines which taxa are in the intersection of a sample set, differential expression analyses the difference between sample sets. It is used to determine which taxa exhibit statistically significant differences in abundance between pairs of groups.
 
-```{r collate, include=FALSE}
-#### Collate Taxonomy ####
+DESeq2 is a statistical package originally developed for analysing count data from RNA-Seq experiments but has been adapted for microbial count data. It uses a model based on the negative binomial distribution to normalise count data and identify differentially abundant taxa, accounting for biological and technical variation.
 
-abund_table <- collate_taxonomy(abund_table, OTU_taxonomy, which_level)
-```
+In microbial ecology, DESeq2 can highlight taxa whose relative abundances change under different environmental or experimental conditions, thus revealing potential biomarkers or organisms that drive community shifts.
 
-## Model Selection
-
-There are a wide variety of models available for analysing differential expression.
+Other models to consider include the following: 
 
 Bulk RNA-Seq:
 - DESeq2
@@ -225,7 +137,7 @@ Single-Cell RNA-Seq:
 - MAST
 - Seurat
 - Monocle3
--glmGamPoi
+- glmGamPoi
 
 Bayesian Approaches:
 - EBSeq
@@ -233,41 +145,16 @@ Bayesian Approaches:
 - BPSC
 - ABSSeq
 
+See this paper for more: <https://www.nature.com/articles/nmeth.2658>
+
 ```{r analyse, include=FALSE}
-#### Analysis ####
-
-dt <- alpha_diversity(abund_table, meta_table, grouping_column)
-
-# Some absolutely fucking insufferable bug causes this to fail if its run in a package
-# so fuck it I'm sticking it here instead
-pval<-data.table::as.data.table(dt)[, list(pvalue = sprintf("%.2g", tryCatch({
-   summary(stats::aov(value ~ .SD$.group.))[[1]][["Pr(>F)"]][1]
-  }, error = function(e) NULL))),
-  by = list(measure)
-]
-  
-result <- alpha_diversity_2(dt, pval, meta_table, grouping_column)
-
-df <- result[[1]]
-df_pw <- result[[2]]
-
-rm(result)
+result <- de_create()
 ```
-
-## Including Plots
-
-Once the analysis is complete, a separate function call draws the plots, and these are rendered here in the notebook.
 
 ```{r plot, echo=FALSE}
-plot_alpha_diversity(df, df_pw)
-```
+de_summarise_results()
 
-## Saving Data
+de_get_results()
 
-It is good practice to save the data produced by the analyses in a non-destructive way. This means that someone coming back to the analysis after some time can see the output of each step, for validation and reproducibility. This also saves one running the entire analysis again in order to redraw a plot or change one final piece. This becomes particularly useful for large, complex analyses that may take hours or even days to complete.
-
-By default, we save a workspace image containing the output of each analysis step in an RData file. This provides an easy way for the user to open the data created by this software and analyse it further, independently. For users that don't use R, or that want a more portable format, we provide an option to export data in CSV format.
-
-```{r save, include=FALSE}
-save_plot(plot, paste("NB_significant_",which_level,"_",labels,".pdf",sep=""), width = ceiling((length(sig_otus) * 80 / 200) + 2.6), height = height_image)
+plot_differential_expression()
 ```

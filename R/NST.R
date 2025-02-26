@@ -80,7 +80,7 @@ nst <- function(
   return(structure(list(df = df), className="ECStochasticityRatio"))
 }
 
-plot.ECStochasticity <- function(value) {
+plot.ECStochasticityRatio <- function(value) {
   # NST_width=4
   # NST_height=8
 
@@ -88,7 +88,6 @@ plot.ECStochasticity <- function(value) {
     geom_bar(stat = "identity") +
     geom_text(aes(label = sprintf("%0.2f", round(value, digits = 2))), vjust = -0.3, size = 3.5) +
     facet_wrap(~ measure, strip.position = "left", ncol = 1, scales = "free_y") +
-    scale_fill_manual(values = colours) +
     ylim(0, 1.1) +
     ylab("Stochasticity Ratios (scaled to 1)") +
     theme(panel.spacing = unit(2, "lines"))

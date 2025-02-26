@@ -74,12 +74,6 @@ meta_table$Groups<-as.factor(as.character(meta_table$run))
 meta_table$Type<-as.factor(as.character(meta_table$sweetening.flow))
 meta_table$Type2<-NULL
 meta_table$Connections<-NULL
-
-colours <- c(
-  "red",
-  "blue",
-  #Next colors are for lines mainly used in the PCoA script
-  "#000080","#4876FF","#CAE1FF","#9FB6CD","#1E90FF","#00F5FF","#00C957",grey.colors(1000));
 ```
 
 ```{r adjust, include=FALSE}
@@ -113,8 +107,6 @@ NST yields a percentage value for each community called the stochasticity ratio 
 
 ```{r analyse_nst, include=FALSE}
 result <- nst(abund_table, meta_table, number_of_randomizations, distance_measure, abundance.weighted, null_model, SES, RC)
-
-print("Note: NST function currently runs on a single thread and may take several hours to complete. Potential for at least 50x speed up by parallel processing and/or moving to GPU.")
 ```
 
 ```{r plot_nst, echo=FALSE}
@@ -139,11 +131,13 @@ QPE is used to quantify assembly within an ecological framework based on selecti
 See the paper on QPE for more details: [Stegen et al., 2015](https://doi.org/10.3389/fmicb.2015.00370)
 
 ```{r analyse_qpe, include=FALSE}
-result <- qpe(physeq)
+new_physeq <- join_phyloseq(abund_table, taxa_table, meta_table, taxa_tree)
+
+result <- qpe(new_physeq)
 ```
 
 ```{r plot_qpe, echo=FALSE}
-p <- plot.ECStochasticity(result) + theme_light() + theme(
+p <- plot.ECQuantitativeProcessEstimate(result) + theme_light() + theme(
   strip.background = element_rect(fill = "#cdcdcd"),
   strip.text = element_text(color = "black")
 )

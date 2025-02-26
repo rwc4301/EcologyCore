@@ -1,5 +1,5 @@
 ---
-title: "Environmental Filtering"
+title: "Compositional Regression"
 date: "`r Sys.Date()`"
 runtime: html
 output: 
@@ -29,28 +29,13 @@ devtools::load_all("..")
 #### Parameters ####
 rds_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/data/experiment_genus.rds"
 
-runs=999
-iterations=1000
-Top_N_abundant_OTUs=2000
-abundance.weighted = TRUE
-null.model= "trialswap" #taxa.labels richness  frequency sample.pool phylogeny.pool independentswap trialswap
-text_size=16
-axis_text_size=14
-strip_text_size=18
-increment_divider=2
-exclude_pvalues_text_from_drawing=FALSE
-legends_position_bottom=FALSE
-exclude_legends=TRUE
-pairwise_text_size=7
-number_of_rows=1
-legend_text_size=20
-legend_title_size=22
-axis_title_size=20
-height_image=9
-width_image=15
-smoothing_alpha=0.3
-use_provided_colors=FALSE
-turn_smoothing_on=FALSE
+grouping_column <- "Groups"
+number_of_randomizations <- 1000
+distance_measure <- "cao"
+abundance.weighted <- FALSE
+null_model <- "PF"
+SES <- TRUE
+RC <- FALSE
 ```
 
 ```{r data_import, include=FALSE, echo=TRUE}
@@ -89,6 +74,25 @@ meta_table$Groups<-as.factor(as.character(meta_table$run))
 meta_table$Type<-as.factor(as.character(meta_table$sweetening.flow))
 meta_table$Type2<-NULL
 meta_table$Connections<-NULL
+
+environmental_covariates<-c(
+  "pH",
+  "Neat.coliform.2000",
+  "neat.e.coli.2000",
+  "Cl.perfrigens.conf",
+  "Enterococci.confirmed.100ml",
+  "22C.Plate.Count.Neat",
+  "Conductivity.20C",
+  "Turbidity.FTU",
+  "Ammoniacal.Nitrogen",
+  "Ammonium.NH4",
+  "Nitrate.as.N",
+  "Nitrite.as.N",
+  "Alkalinity.as.CaCO3",
+  "Sulphate.as.SO4",
+  "Nitrite.as.NO2",
+  "Carbon.Total.Organic"
+)
 ```
 
 ```{r adjust, include=FALSE}
@@ -105,20 +109,22 @@ abund_table <- abund_table[,colSums(abund_table) > 0]
 taxa_table <- taxa_table[colnames(abund_table),]
 ```
 
-# Environmental Filtering
+# Compositional Regression
 
-To give an account of environmental filtering (phylogenetic overdispersion versus clustering), phylogenetic distances within each sample are further characterised by calculating the nearest taxon index (NTI) and net relatedness index (NRI). This analysis helps determine whether the community structure was stochastic (overdispersion and driven by competition among taxa) or deterministic (clustering and driven by strong environmental pressure). 
+Due to the compositional nature of microbiome data, we use a balance approach to find a minimal subset of genera whose abundance correlates with each covariate. 
 
-The NTI is calculated using mntd() and ses.mntd(), and the mean phylogenetic diversity (MPD) and NRI are calculated using mpd() and ses.mpd() functions from the picante package (Kembel et al., 2010). NTI and NRI represent the negatives of the output from ses.mntd() and ses.mpd(), respectively. Additionally, they quantify the number of standard deviations that separate the observed values from the mean of the null distribution (999 randomisation using null.model-‘richness’ in the ses.mntd() and ses.mpd() functions and only considering taxa as either present or absent regardless of their relative abundance). The top 1000 most abundant ASVs are used for the calculations, based on established recommendations (Stegen et al., 2012). 
+CODA LASSO regression using the coda_glmnet() function from R’s coda4microbiome package was applied for the top 100 most abundant genera (Calle et al., 2023). The fitted regression was of the form y_i=\beta_0+\beta_1\log{(x_{1i})}+\ldots+\beta_j\log{\left(x_{ji}\right)}+\epsilon_i (for 𝑖-th sample and 𝑗-th feature, with x_{ji} being the abundance of feature), and where the outcome y_i was a continuous outcome variable. 
+
+The model used two constraints: a) all 𝛽-coefficients summed up to zero, that gave two sets of features: those that were positively associated with continuous outcome, and those that were otherwise; and b) the optimization function incorporated a LASSO shrinkage that forced some of the beta coefficients to go to zero, particularly those that were statistically insignificant in relation to the outcome.
 
 ```{r analyse, include=FALSE}
-#new_physeq <- join_phyloseq(abund_table, taxa_table, meta_table, taxa_tree)
+new_physeq <- join_phyloseq(abund_table, taxa_table, meta_table, taxa_tree)
 
-result <- environmental_filtering(abund_table, taxa_table, meta_table, taxa_tree)
+result <- coda_glmnet(new_physeq)
 ```
 
 ```{r plot, echo=FALSE}
-p <- plot.ECEnvironmentalFiltering(result) + theme_light() + theme(
+p <- plot.ECCompositionalRegression(result) + theme_light() + theme(
   strip.background = element_rect(fill = "#cdcdcd"),
   strip.text = element_text(color = "black")
 )

@@ -47,7 +47,7 @@ This workflow runs through a number of ecological analyses in series as follows:
 - **Community Assembly Processes:** Normalised Stochasticity Ratio, Quantitative Process Estimate
 - **Environmental Filtering:** NRI, NTI; environmental impact on evolution of phylogeny
 - **Diversity Regression:** regress metadata against diversity metrics (alpha, NRI, NTI, LCBD, etc.)
-- **Compositional Regression/Variable Selection:** Selbal, CLR LASSO, CODA LASSO; selects two groups of taxa whose balance is most associated with the response (metadata) variable
+- **Compositional Regression:** Selbal, CLR LASSO, CODA LASSO; selects two groups of taxa whose balance is most associated with the response (metadata) variable
 - [Add to variable selection] **Differential Expression:** DESeq2; shows significant differences in abundance between pairs of groups
 
 

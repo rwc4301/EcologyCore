@@ -15,7 +15,7 @@ occ_threshold<-function (m, threshold, max_absent = 0)
   return(m[, goodspecies])
 }
 
-coda_glmnet_analysis <- function(physeq) {
+coda_glmnet <- function(physeq) {
   res<-NULL
 
   # TODO: remove
@@ -94,14 +94,13 @@ coda_glmnet_analysis <- function(physeq) {
   })
   }
 
-  class(res) <- "CompositionalRegression"
+  class(res) <- "ECCompositionalRegression"
   return (res)
 }
 
-plot.CompositionalRegression <- function(res) {
-
+plot.ECCompositionalRegression <- function(value) {
   #Now draw the expression of the selected taxa
-  df<-reshape2::melt(normalised_table[,res$taxa.name])
+  df<-reshape2::melt(normalised_table[,value$taxa.name])
   colnames(df)<-c("Sample","Feature","Value")
   df<-data.frame(df,Groups=mt2[as.character(df$Sample),j])
 
@@ -112,14 +111,16 @@ plot.CompositionalRegression <- function(res) {
   p<-p+theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))+theme(strip.text.x = element_text(size = 16, colour = "black", angle = 90))
   p<-p+scale_color_manual("Groups",values=c("#ff7e24","#7967ed"))
   p<-p+guides(colour=FALSE) #FALSE
-  pdf(paste("Expressions_plot_",label,"_",i,"_",j,".pdf",sep=""),width=ceiling((length(res$taxa.name)*80/200)+2.6),height=15)
+  pdf(paste("Expressions_plot_",label,"_",i,"_",j,".pdf",sep=""),width=ceiling((length(value$taxa.name)*80/200)+2.6),height=15)
   print(p)
   dev.off()
 
-  pdf(paste("Signature_plot_",label,"_",i,"_",j,".pdf",sep=""),height=max(3,ceiling(length(res$taxa.num)/4)*height_adjustment),width=20)
-  plot(res$`signature plot`)
-  dev.off()
-  pdf(paste("Predictions_plot_",label,"_",i,"_",j,".pdf",sep=""),height=5,width=10)
-  plot(res$`predictions plot`)
-  dev.off()
+  # pdf(paste("Signature_plot_",label,"_",i,"_",j,".pdf",sep=""),height=max(3,ceiling(length(value$taxa.num)/4)*height_adjustment),width=20)
+  # plot(value$`signature plot`)
+  # dev.off()
+  # pdf(paste("Predictions_plot_",label,"_",i,"_",j,".pdf",sep=""),height=5,width=10)
+  # plot(value$`predictions plot`)
+  # dev.off()
+
+  return(plot(value$`predictions plot`))
 }

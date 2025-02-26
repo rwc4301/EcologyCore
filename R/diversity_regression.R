@@ -14,7 +14,7 @@
 # library(caret)
 # library(leaps)
 
-subset_regression <- function(dependent_table, meta_table, dependent_variable) {
+diversity_regression <- function(dependent_table, meta_table, dependent_variable, explanatory_variables) {
   regression_method="forward" #exhaustive, backward, forward, seqrep
   really_big=FALSE #TRUE/FALSE
 
@@ -22,18 +22,6 @@ subset_regression <- function(dependent_table, meta_table, dependent_variable) {
   #Make sure there are no hyphens "-" in column names, remove them or convert them to underscores "_"
 
   label="Shannon_Hypothesis1"
-
-
-  selected_explanatory_variables<-c(
-    "pH",
-    "Temp",
-    "conductivity",
-    "turbidity",
-    "D50_grain_size",
-    "Mean_Gradient_of_Catchment"
-  )
-
-
 
   #/PARAMETERS ###########################
 

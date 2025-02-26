@@ -1,0 +1,87 @@
+---
+title: "Diversity Regression"
+date: "`r Sys.Date()`"
+runtime: html
+output: 
+  html_document:
+    fig_width: 16
+    fig_height: 10
+    fig_caption: true
+    number_sections: true
+    toc: false
+    toc_float:
+      collapsed: false
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+knitr::opts_chunk$set(echo = TRUE)
+
+# For testing
+devtools::load_all("..")
+
+# For production
+# library(EcologyCore)
+```
+
+```{r params, include=FALSE}
+#### Parameters ####
+meta_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/data/metadata.csv"
+dependent_path <- "../alpha_diversity/Diversity_Otus_Hypothesis1.csv"
+
+dependent_variable <- c("Shannon")
+explanatory_variables <- c(
+  "pH",
+  "Neat.coliform.2000",
+  "neat.e.coli.2000",
+  "Cl.perfrigens.conf",
+  "Enterococci.confirmed.100ml",
+  "22C.Plate.Count.Neat",
+  "Conductivity.20C",
+  "Turbidity.FTU",
+  "Ammoniacal.Nitrogen",
+  "Ammonium.NH4",
+  "Nitrate.as.N",
+  "Nitrite.as.N",
+  "Alkalinity.as.CaCO3",
+  "Sulphate.as.SO4",
+  "Nitrite.as.NO2",
+  "Carbon.Total.Organic"
+)
+```
+
+```{r data_import, include=FALSE, echo=TRUE}
+meta_table <- read.csv(meta_path, header = TRUE, row.names = 1)
+dependent_table <- read.csv(dependent_path, header = TRUE, row.names = 1)
+```
+
+```{r data_check, include=FALSE}
+stopifnot({
+  exists("meta_table")
+  exists("dependent_table")
+})
+```
+
+```{r hypothesis, include=FALSE}
+#### Hypothesis ####
+label="xRun"
+meta_table$Groups<-as.factor(as.character(meta_table$run))
+meta_table$Type<-as.factor(as.character(meta_table$sweetening.flow))
+meta_table$Type2<-NULL
+meta_table$Connections<-NULL
+```
+
+## Diversity Regression
+
+We use a best subsets approach to correlate environmental covariates with microbiome diversity metrics. 
+
+The function regsubsets() from the leaps R package (Lumley and Miller, 2009) is used to systematically build regression models to explain each metric via subsets of explanatory variables. Each model is then evaluated by using the train() function from the caret R package (Kuhn, 2008) to compute the k-fold cross-validation error (with k=5). Statistics for each model are obtained using the tab_model() function from the sjPlot package (Lüdecke, 2018). 
+
+```{r analyse, include=FALSE}
+result <- diversity_regression(dependent_table, meta_table, dependent_variable, explanatory_variables)
+```
+
+```{r plot, echo=FALSE}
+
+```
