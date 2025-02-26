@@ -11,12 +11,14 @@
 
 nst_distance_measure = list("manhattan", "mManhattan", "euclidean", "mEudclidean", "canberra", "bray", "kulczynski", "jaccard", "gower", "altGower", "mGower", "morisita", "horn", "binomial", "chao", "cao")
 
-nst <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree) {
-  number_of_randomizations = 1000
-  distance_measure= "cao" #"manhattan" "mManhattan" "euclidean" "mEuclidean"  "canberra" "bray" "kulczynski" "jaccard" "gower" "altGower" "mGower" "morisita" "horn" "binomial" "chao" "cao"
-  abundance.weighted= FALSE #Logic, consider abundances or not (just presence/absence). default is TRUE.
+nst <- function(
+  abund_table,
+  meta_table,
+  number_of_randomizations = 1000,
+  distance_measure= "cao", #"manhattan" "mManhattan" "euclidean" "mEuclidean"  "canberra" "bray" "kulczynski" "jaccard" "gower" "altGower" "mGower" "morisita" "horn" "binomial" "chao" "cao"
+  abundance.weighted = FALSE, #Logic, consider abundances or not (just presence/absence). default is TRUE.
   #Jaccard with abundance.weighted=TRUE is called Ruzicka
-  null_model="PF" #"EE" "EP" "EF" "PE" "PP" "PF" "FE" "FP" "FF" with details given below:
+  null_model = "PF", #"EE" "EP" "EF" "PE" "PP" "PF" "FE" "FP" "FF" with details given below:
   #Abbreviation|Ways_to_constrain_taxa_occurrence_frequency|Ways_to_constrain_richness_in_each_sample
   #============|===========================================|=========================================
   # EE           Equiprobable                                Equiprobable
@@ -37,16 +39,9 @@ nst <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree) {
   #   "Equiprobable" means that all samples have equal probability to contain a taxon;
   #   "Proportional" means the occurrence probability in a sample is proportional to the observed richness in this sample;
   #   "Fixed" means the occurrence frequency of a taxon is fixed as observed
-  SES = TRUE #Logic, whether to calculate standardized effect size, which is (observed dissimilarity - mean of null dissimilarity)/standard deviation of null dissimilarity. default is FALSE.
+  SES = TRUE, #Logic, whether to calculate standardized effect size, which is (observed dissimilarity - mean of null dissimilarity)/standard deviation of null dissimilarity. default is FALSE.
   RC = FALSE # Logic, whether to calculate modified Raup-Crick metric, which is percentage of null dissimilarity lower than observed dissimilarity x 2 - 1. default is FALSE.
-
-
-  # Process input data
-  # abund_table <- phyloseq::otu_table(physeq)
-  # meta_table <- phyloseq::sample_data(physeq)
-  # OTU_taxonomy <- phyloseq::tax_table(physeq)
-  # OTU_tree <- phyloseq::phy_tree(physeq)
-
+) {
   #Bug in tNST (abund_table should be of type "matrix")
   abund_table<-as(abund_table,"matrix")
 
@@ -80,14 +75,14 @@ nst <- function(abund_table, meta_table, OTU_taxonomy, OTU_tree) {
   names(tmp)<-c("Groups","value","measure")
   df<-rbind(df,tmp)
 
-  return(df)
+  return(structure(list(df = df), className="ECStochasticity"))
 }
 
-plot_nst <- function(df) {
+plot.ECStochasticity <- function(value) {
   # NST_width=4
   # NST_height=8
 
-  p <- ggplot(df, aes(x = Groups, y = value, fill = Groups)) +
+  p <- ggplot(value$df, aes(x = Groups, y = value, fill = Groups)) +
     geom_bar(stat = "identity") +
     geom_text(aes(label = sprintf("%0.2f", round(value, digits = 2))), vjust = -0.3, size = 3.5) +
     facet_wrap(~ measure, strip.position = "left", ncol = 1, scales = "free_y") +

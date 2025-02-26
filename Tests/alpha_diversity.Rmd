@@ -37,7 +37,7 @@ library(phyloseq)
 physeq <- import_rds(rds_path)
 
 # Here we choose what taxonomic rank to cluster around
-physeq <- collate_taxonomy_2(physeq, rank = "Genus")
+# physeq <- collate_taxonomy_2(physeq, rank = "Genus")
 
 abund_table <- otu_table(physeq, TRUE)
 taxa_table <- tax_table(physeq, TRUE)
@@ -81,7 +81,6 @@ meta_table$Connections<-NULL
 
 ```{r adjust, include=FALSE}
 # Alpha diversity expects feature table to be a data frame with taxa as columns and samples as rows, so might need some transforming
-
 if (taxa_are_rows(abund_table)) {
   abund_table <- t(abund_table)
 }
