@@ -43,18 +43,20 @@ nst <- function(
   RC = FALSE # Logic, whether to calculate modified Raup-Crick metric, which is percentage of null dissimilarity lower than observed dissimilarity x 2 - 1. default is FALSE.
 ) {
   #Bug in tNST (abund_table should be of type "matrix")
-  abund_table<-as(abund_table,"matrix")
+
+  comm <- as(abund_table, "matrix")
+  group <- as(meta_table[,"Groups",drop=F], "matrix")
 
   tnst = NST::tNST(
-    comm=abund_table,
-    group=meta_table[,"Groups",drop=F],
-    rand=number_of_randomizations,
+    comm = comm,
+    group = group,
+    rand = number_of_randomizations,
     dist.method = distance_measure,
-    null.model=null_model,
-    output.rand=TRUE,
-    nworker=1,
-    SES=SES,
-    RC=RC
+    null.model = null_model,
+    output.rand = TRUE,
+    nworker = parallel::detectCores(),
+    SES = SES,
+    RC = RC
   )
 
   #Extract mean NST/ST/MST values of groups
@@ -75,7 +77,7 @@ nst <- function(
   names(tmp)<-c("Groups","value","measure")
   df<-rbind(df,tmp)
 
-  return(structure(list(df = df), className="ECStochasticity"))
+  return(structure(list(df = df), className="ECStochasticityRatio"))
 }
 
 plot.ECStochasticity <- function(value) {

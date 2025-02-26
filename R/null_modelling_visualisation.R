@@ -7,15 +7,15 @@
 # library(ggplot2)
 # library(yarrr)
 
-plot_qpe <- function() {
-  #PARAMETERS ###########################
+plot.ECQuantitativeProcessEstimate <- function(value) {
+  PairwisebNTI <- value$pairwise_bNTI
+  PairwiseRC <- value$pairwise_RC
+  RC <- value$RC
+  Coherence <- value$coherence
+  BoundaryClump <- value$boundary
+  Turnover <- value$turnover
+
   label="Hypothesis1"
-  PairwisebNTI<-read.csv("PairwisebNTI_Hypothesis1.csv",header=T,row.names=1)
-  PairwiseRC<-read.csv("PairwiseRC_Hypothesis1.csv",header=T,row.names=1)
-  RC<-read.csv("RC_Hypothesis1.csv",header=T,row.names=1)
-  Coherence<-read.csv("Coherence_Hypothesis1.csv",header=T,row.names=1)
-  BoundaryClump<-read.csv("Boundary_Hypothesis1.csv",header=T,row.names=1)
-  Turnover<-read.csv("Turnover_Hypothesis1.csv",header=T,row.names=1)
   ordering<-c(
     "COV",
     "CH"
@@ -61,18 +61,19 @@ plot_qpe <- function() {
     if(is.null(QPE_df)){QPE_df<-tmp2} else {QPE_df<-rbind(QPE_df,tmp2)}
   }
 
-  #Change the orderign of the Groups
+  #Change the ordering of the Groups
   QPE_df$Groups<-factor(as.character(QPE_df$Groups),levels=ordering)
-  pdf(paste("QPE_",label,".pdf",sep=""),width=QPE_width,height=QPE_height)
-  p<-ggplot(QPE_df, aes(x=Groups, y=value, fill=Groups))
-  p<-p+geom_bar(stat="identity")+theme_minimal()
-  p<-p+geom_text(aes(label=sprintf("%0.2f", round(value, digits = 2))), vjust=-0.3, size=3.5)
-  p<-p+facet_wrap(~measure, strip.position="left", ncol=1,scales="free_y")
-  p<-p+scale_fill_manual(values=colours)
-  p<-p+ylim(0,110)
-  p<-p+ylab("% Assembly Processes")
-  p<-p+theme(strip.background = element_rect(fill="white"))+theme(panel.spacing = unit(2, "lines"),
-                                                                  axis.text.x = element_text(angle = 90, hjust = 1))
+  #pdf(paste("QPE_",label,".pdf",sep=""),width=QPE_width,height=QPE_height)
+
+  p <- ggplot(QPE_df, aes(x = Groups, y = value, fill = Groups)) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = sprintf("%0.2f", round(value, digits = 2))), vjust = -0.3, size = 3.5) +
+    facet_wrap(~ measure, strip.position = "left", ncol = 1, scales = "free_y") +
+    scale_fill_manual(values = colours) +
+    ylim(0, 110) +
+    ylab("% Assembly Processes") +
+    theme(panel.spacing = unit(2, "lines"), axis.text.x = element_text(angle = 90, hjust = 1))
+
   return(p)
 }
 
