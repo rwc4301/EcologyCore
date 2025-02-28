@@ -1,5 +1,5 @@
 ---
-title: "Diversity Regression"
+title: "Regression Analysis"
 date: "`r Sys.Date()`"
 runtime: html
 output: 
@@ -82,6 +82,6 @@ The function regsubsets() from the leaps R package (Lumley and Miller, 2009) is 
 result <- diversity_regression(dependent_table, meta_table, dependent_variable, explanatory_variables)
 ```
 
-```{r plot, echo=FALSE}
-
+```{r cv_table, echo=FALSE}
+knitr::kable(result$CV_table, format = "markdown", digits = 5, caption = "Cross-validation Errors for Model Selection")
 ```
