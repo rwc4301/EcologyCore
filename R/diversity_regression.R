@@ -18,17 +18,17 @@ diversity_regression <- function(dependent_table, meta_table, dependent_variable
   regression_method="forward" #exhaustive, backward, forward, seqrep
   really_big=FALSE #TRUE/FALSE
 
-  #Use selected_explanatory_variables[!selected_explanatory_variables %in% colnames(meta_table)] to debug
+  #Use explanatory_variables[!explanatory_variables %in% colnames(meta_table)] to debug
   #Make sure there are no hyphens "-" in column names, remove them or convert them to underscores "_"
 
   label="Shannon_Hypothesis1"
 
   #/PARAMETERS ###########################
 
-  #Ensure that we are only selecting samples for which the meta_table[,selected_explanatory_variables] is complete and
+  #Ensure that we are only selecting samples for which the meta_table[,explanatory_variables] is complete and
   #the samples also exist in the dependent_table
-  meta_table[,selected_explanatory_variables] <- lapply(meta_table[,selected_explanatory_variables], function(x) as.numeric(as.character(x)))
-  meta_table<-meta_table[complete.cases(meta_table[,selected_explanatory_variables]),]
+  meta_table[,explanatory_variables] <- lapply(meta_table[,explanatory_variables], function(x) as.numeric(as.character(x)))
+  meta_table<-meta_table[complete.cases(meta_table[,explanatory_variables]),]
   meta_table<-meta_table[rownames(meta_table) %in% rownames(dependent_table),]
   dependent_table<-dependent_table[rownames(meta_table),,drop=F]
   dependent_table<-dependent_table[complete.cases(dependent_table[,dependent_variable]),,drop=F]
@@ -59,11 +59,11 @@ diversity_regression <- function(dependent_table, meta_table, dependent_variable
   }
 
 
-  lm.dat<-data.frame(dependent_table[,dependent_variable,drop=F],meta_table[,selected_explanatory_variables,drop=F])
+  lm.dat<-data.frame(dependent_table[,dependent_variable,drop=F],meta_table[,explanatory_variables,drop=F])
 
-  models<-regsubsets(as.formula(paste(dependent_variable,"~",paste(selected_explanatory_variables,collapse=" + "))),
+  models<-leaps::regsubsets(as.formula(paste(dependent_variable,"~",paste(explanatory_variables,collapse=" + "))),
                      data=lm.dat,
-                     nvmax=length(selected_explanatory_variables),really.big=really_big,method=regression_method)
+                     nvmax=length(explanatory_variables),really.big=really_big,method=regression_method)
 
   nvmax=length(summary(models)[[2]])
 
@@ -105,13 +105,13 @@ diversity_regression <- function(dependent_table, meta_table, dependent_variable
   # Compute cross-validation error
   model.ids <- 1:nvmax
   cv.errors <-  purrr::map(model.ids, get_model_formula, models, dependent_variable) %>%
-    map(get_cv_error, data = lm.dat) %>%
+    purrr::map(get_cv_error, data = lm.dat) %>%
     unlist()
 
   best_variable_model<-which.min(cv.errors)
 
   #Generate a CV table
-  CV_table<-data.frame(as.character(map(model.ids, get_model_formula, models, dependent_variable)))
+  CV_table<-data.frame(as.character(purrr::map(model.ids, get_model_formula, models, dependent_variable)))
   names(CV_table)<-c("Model")
   CV_table$`Cross-validation Errors`<-cv.errors
   CV_table<-CV_table[order(CV_table$`Cross-validation Errors`,decreasing=FALSE),]

@@ -203,11 +203,31 @@ plot.ECAlphaDiversity <- function(value) {
 
 #### Write Data Out ####
 
-write_data <- function() {
+alpha_write_data <- function(abund_table, OTU_taxonomy, meta_table, OTU_tree, output_path = "AlphaDiversity.csv") {
+    #Calculate Richness
+  R<-vegan::rarefy(abund_table,min(rowSums(abund_table)))
+  df_R<-data.frame(sample=names(R),value=R,measure=rep("Richness",length(R)))
+
+  #Calculate Shannon entropy
+  H<-vegan::diversity(abund_table)
+  df_H<-data.frame(sample=names(H),value=H,measure=rep("Shannon Index",length(H)))
+
+  #Calculate Simpson diversity index
+  simp <- vegan::diversity(abund_table, "simpson")
+  df_simp<-data.frame(sample=names(simp),value=simp,measure=rep("Simpson Index",length(simp)))
+
+  #Calculate Fisher alpha
+  alpha <- vegan::fisher.alpha(abund_table)
+  df_alpha<-data.frame(sample=names(alpha),value=alpha,measure=rep("Fisher's Alpha",length(alpha)))
+
+  #Calculate Pielou's evenness
+  S <- vegan::specnumber(abund_table)
+  J <- H/log(S)
+  df_J<-data.frame(sample=names(J),value=J,measure=rep("Pielou's Evenness",length(J)))
 
   #Write all the metrics in a file for further analyses elsewhere
   data_to_write<-data.frame(df_R[,"value",drop=F],df_H[,"value",drop=F],df_simp[,"value",drop=F],df_alpha[,"value",drop=F],df_J[,"value",drop=F])
   colnames(data_to_write)<-c("Richness","Shannon","Simpson","FisherAlpha","PielouEvenness")
-  write.csv(data_to_write,paste("Diversity_",which_level,"_",label,".csv",sep=""))
+  write.csv(data_to_write, output_path)
   #/Write all the metrics in a file for further analyses else where
 }

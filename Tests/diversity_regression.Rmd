@@ -28,7 +28,7 @@ devtools::load_all("..")
 ```{r params, include=FALSE}
 #### Parameters ####
 meta_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/data/metadata.csv"
-dependent_path <- "../alpha_diversity/Diversity_Otus_Hypothesis1.csv"
+dependent_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/results/environmental_filtering/Environmental_Filtering_TEST_xRun_trialswap.csv"
 
 dependent_variable <- c("Shannon")
 explanatory_variables <- c(
@@ -37,7 +37,7 @@ explanatory_variables <- c(
   "neat.e.coli.2000",
   "Cl.perfrigens.conf",
   "Enterococci.confirmed.100ml",
-  "22C.Plate.Count.Neat",
+  "X22C.Plate.Count.Neat",
   "Conductivity.20C",
   "Turbidity.FTU",
   "Ammoniacal.Nitrogen",

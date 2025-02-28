@@ -118,7 +118,7 @@ result <- environmental_filtering(abund_table, taxa_table, meta_table, taxa_tree
 ```
 
 ```{r plot, echo=FALSE}
-p <- plot.ECEnvironmentalFiltering(result) + theme_light() + theme(
+p <- plot.ECAlphaDiversity(result) + theme_light() + theme(
   strip.background = element_rect(fill = "#cdcdcd"),
   strip.text = element_text(color = "black")
 )
