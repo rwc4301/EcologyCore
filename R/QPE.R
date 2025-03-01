@@ -109,12 +109,12 @@ qpe <- function(physeq) {
 
 
     #Now calculate betaMNTD
-    m=match.phylo.data(OTU_tree, t(abund_table_ems_group)) #Extract subtree for each group
+    m=picante::match.phylo.data(OTU_tree, t(abund_table_ems_group)) #Extract subtree for each group
     OTU_tree_ems_group=m$phy
 
     abund_table_ems_group<-t(abund_table_ems_group)
 
-    beta.mntd.weighted = as.matrix(comdistnt(t(abund_table_ems_group),cophenetic(OTU_tree_ems_group),abundance.weighted=T));
+    beta.mntd.weighted = as.matrix(picante::comdistnt(t(abund_table_ems_group), stats::cophenetic(OTU_tree_ems_group), abundance.weighted = TRUE))
 
 
     beta.reps = 999;
@@ -123,7 +123,7 @@ qpe <- function(physeq) {
 
     for (rep in 1:beta.reps) {
 
-      rand.weighted.bMNTD.comp[,,rep] = as.matrix(comdistnt(t(abund_table_ems_group),taxaShuffle(cophenetic(OTU_tree_ems_group)),abundance.weighted=T,exclude.conspecifics = F));
+      rand.weighted.bMNTD.comp[,,rep] = as.matrix(picante::comdistnt(t(abund_table_ems_group),taxaShuffle(cophenetic(OTU_tree_ems_group)),abundance.weighted=T,exclude.conspecifics = F));
 
       print(c(date(),rep));
 
