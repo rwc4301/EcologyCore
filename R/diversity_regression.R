@@ -14,10 +14,15 @@
 # library(caret)
 # library(leaps)
 
-diversity_regression <- function(dependent_table, meta_table, dependent_variable, explanatory_variables) {
-  regression_method="forward" #exhaustive, backward, forward, seqrep
-  really_big=FALSE #TRUE/FALSE
-
+diversity_regression <- function(
+  dependent_table, 
+  meta_table, 
+  dependent_variable, 
+  explanatory_variables
+  regression_method = "forward" #exhaustive, backward, forward, seqrep
+  really_big = FALSE #TRUE/FALSE
+  num_top_models = 5
+) {
   #Use explanatory_variables[!explanatory_variables %in% colnames(meta_table)] to debug
   #Make sure there are no hyphens "-" in column names, remove them or convert them to underscores "_"
 
@@ -119,50 +124,60 @@ diversity_regression <- function(dependent_table, meta_table, dependent_variable
 
   best_model<-lm(get_model_formula(best_variable_model,models,dependent_variable),data=lm.dat)
 
-  return (structure(list(
-    CV_table = CV_table,
-    best_model = best_model,
-    models = models
-  ), class = "ECSubsetRegression"))
-
-  #Get visualisations for all best models
-  for (i in 1:nvmax){
+  # Get summaries for the best models (default top 5)
+  model_summaries <- vector("list", length = num_top_models)
+  for (i in 1:num_top_models) {
     tmp<-get_model_formula(i,models,dependent_variable)
     current_model<-lm(get_model_formula(i,models,dependent_variable),data=lm.dat)
     if(length(current_model$coefficients)>sum(complete.cases(current_model$coefficients))){
       current_model<-lm(as.formula(paste(dependent_variable,"~",paste(names(current_model$coefficients)[complete.cases(current_model$coefficients)][-1],collapse="+"))),data=lm.dat)
     }
 
-
-    #Reference: https://cran.r-project.org/web/packages/sjPlot/vignettes/tab_model_estimates.html
-    #Reference: https://www.r-bloggers.com/beautiful-tables-for-linear-model-summaries-rstats/
-    #if it fails, then use the other one depending on the version of tab_model
-    q<-tab_model(current_model, p.style="scientific_stars", digits=5,show.se = TRUE, show.std = TRUE, show.df=TRUE, show.stat = TRUE,file=NULL)
-    #q<-tab_model(current_model, p.style="both", digits=5,show.se = TRUE, show.std = TRUE, show.df=TRUE, show.stat = TRUE,file=NULL)
-    p<-as.data.frame(gsub("\n","",q$knitr))
-    colnames(p)<-c(" ")
-    write.csv(p,file=paste(label,"_M",i,".html",sep=""),quote=FALSE,col.names=FALSE,row.names=FALSE)
-
-    #Reference: https://cran.r-project.org/web/packages/jtools/vignettes/summ.html
-    pdf(paste(label,"_M",i,".pdf",sep=""),width=8,height=4)
-    p<-plot_summs(current_model,
-                  model.names=c(paste("M",i,sep="")),
-                  plot.distributions=TRUE,rescale.distributions=TRUE,
-                  omit.coefs=NULL,
-                  color.class="Rainbow")
-    print(p)
-    dev.off()
+    model_summaries[[i]] <- current_model 
   }
+
+  return (structure(list(
+    CV_table = CV_table,
+    best_model = best_model,
+    models = models,
+    model_summaries = model_summaries
+  ), class = "ECSubsetRegression"))
+}
+
+get_cv_table <- function(value) {
+
+}
+
+get_summary_table <- function(current_model) {
+  #Reference: https://cran.r-project.org/web/packages/sjPlot/vignettes/tab_model_estimates.html
+  #Reference: https://www.r-bloggers.com/beautiful-tables-for-linear-model-summaries-rstats/
+  #if it fails, then use the other one depending on the version of tab_model
+  q<-tab_model(current_model, p.style="scientific_stars", digits=5,show.se = TRUE, show.std = TRUE, show.df=TRUE, show.stat = TRUE,file=NULL)
+  #q<-tab_model(current_model, p.style="both", digits=5,show.se = TRUE, show.std = TRUE, show.df=TRUE, show.stat = TRUE,file=NULL)
+  p<-as.data.frame(gsub("\n","",q$knitr))
+  colnames(p)<-c(" ")
+  #write.csv(p,file=paste(label,"_M",i,".html",sep=""),quote=FALSE,col.names=FALSE,row.names=FALSE)
+
+  return (p)
 }
 
 summary.ECSubsetRegression <- function(value) {
   #print(xtable(CV_table,display=c("s","s","f"),digits=5), type="html", file=paste(label,"_CV_errors.html",sep=""),html.table.attributes = "border = '1', align = 'center', cellspacing='0', cellpadding='0'")
 }
 
-plot.ECSubsetRegression <- function(value) {
+plot_model_summaries <- function(value) {
+  #Reference: https://cran.r-project.org/web/packages/jtools/vignettes/summ.html
+  #pdf(paste(label,"_M",i,".pdf",sep=""),width=8,height=4)
+  p <- jtools::plot_summs(
+    value$model_summaries,
+    model.names=c(paste("M",i,sep="")),
+    plot.distributions=TRUE,
+    rescale.distributions=TRUE,
+    omit.coefs=NULL,
+    color.class="Rainbow"
+  )
 
-}
-
-print.ECSubsetRegression <- function(value) {
-
+  return (p)
+  #print(p)
+  #dev.off()
 }
