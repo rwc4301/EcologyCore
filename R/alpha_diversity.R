@@ -7,7 +7,7 @@
 
 ## Also works for picrust data - need to round abund_table
 
-alpha_diversity <- function(abund_table, OTU_taxonomy, meta_table, OTU_tree) {
+alpha_diversity <- function(abund_table, OTU_taxonomy, meta_table, OTU_tree, indices = NULL) {
   # TODO: remove
   grouping_column <- "Groups"
 
@@ -17,31 +17,53 @@ alpha_diversity <- function(abund_table, OTU_taxonomy, meta_table, OTU_tree) {
   # OTU_taxonomy <- phyloseq::tax_table(physeq)
   # OTU_tree <- phyloseq::phy_tree(physeq)
 
-  #Calculate Richness
-  R<-vegan::rarefy(abund_table,min(rowSums(abund_table)))
-  df_R<-data.frame(sample=names(R),value=R,measure=rep("Richness",length(R)))
+  # Define available indices and their calculation functions
+  index_functions <- list(
+    "Richness" = function(at) {
+      R <- vegan::rarefy(at, min(rowSums(at)))
+      data.frame(sample=names(R), value=R, measure=rep("Richness", length(R)))
+    },
+    "Shannon" = function(at) {
+      H <- vegan::diversity(at)
+      data.frame(sample=names(H), value=H, measure=rep("Shannon Index", length(H)))
+    },
+    "Simpson" = function(at) {
+      simp <- vegan::diversity(at, "simpson")
+      data.frame(sample=names(simp), value=simp, measure=rep("Simpson Index", length(simp)))
+    },
+    "Fisher" = function(at) {
+      alpha <- vegan::fisher.alpha(at)
+      data.frame(sample=names(alpha), value=alpha, measure=rep("Fisher's Alpha", length(alpha)))
+    },
+    "Pielou" = function(at) {
+      S <- vegan::specnumber(at)
+      H <- vegan::diversity(at)
+      J <- H/log(S)
+      data.frame(sample=names(J), value=J, measure=rep("Pielou's Evenness", length(J)))
+    }
+  )
 
-  #Calculate Shannon entropy
-  H<-vegan::diversity(abund_table)
-  df_H<-data.frame(sample=names(H),value=H,measure=rep("Shannon Index",length(H)))
+  # Validate requested indices
+  valid_indices <- names(index_functions)
+  if (missing(indices)) {
+    indices <- valid_indices  # Use all indices if none specified
+  } else {
+    invalid_indices <- setdiff(indices, valid_indices)
+    if (length(invalid_indices) > 0) {
+      stop(sprintf("Invalid indices requested: %s\nAvailable indices are: %s",
+                  paste(invalid_indices, collapse=", "),
+                  paste(valid_indices, collapse=", ")))
+    }
+  }
 
-  #Calculate Simpson diversity index
-  simp <- vegan::diversity(abund_table, "simpson")
-  df_simp<-data.frame(sample=names(simp),value=simp,measure=rep("Simpson Index",length(simp)))
+  # Calculate requested indices
+  df_list <- lapply(indices, function(index) {
+    index_functions[[index]](abund_table)
+  })
 
-  #Calculate Fisher alpha
-  alpha <- vegan::fisher.alpha(abund_table)
-  df_alpha<-data.frame(sample=names(alpha),value=alpha,measure=rep("Fisher's Alpha",length(alpha)))
-
-  #Calculate Pielou's evenness
-  S <- vegan::specnumber(abund_table)
-  J <- H/log(S)
-  df_J<-data.frame(sample=names(J),value=J,measure=rep("Pielou's Evenness",length(J)))
-
-  #Uncomment to retain everything
-  df<-rbind(df_R,df_H,df_simp,df_alpha,df_J)
-
-  rownames(df)<-NULL
+  # Combine all results
+  df <- do.call(rbind, df_list)
+  rownames(df) <- NULL
 
   #Incorporate categorical data in df
   df<-data.frame(df,meta_table[as.character(df$sample),])
@@ -155,7 +177,7 @@ plot.ECAlphaDiversity <- function(value) {
   df_pw <- value$df_pw
   meta_table <- value$meta_table
 
-  point_size = 5
+  point_size = 2
   point_opacity = 0.8
   number_of_rows = 1
   use_provided_colors = FALSE

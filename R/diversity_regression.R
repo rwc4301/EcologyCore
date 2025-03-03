@@ -15,12 +15,12 @@
 # library(leaps)
 
 diversity_regression <- function(
-  dependent_table, 
-  meta_table, 
-  dependent_variable, 
-  explanatory_variables
-  regression_method = "forward" #exhaustive, backward, forward, seqrep
-  really_big = FALSE #TRUE/FALSE
+  dependent_table,
+  meta_table,
+  dependent_variable,
+  explanatory_variables,
+  regression_method = "forward", #exhaustive, backward, forward, seqrep
+  really_big = FALSE, #TRUE/FALSE
   num_top_models = 5
 ) {
   #Use explanatory_variables[!explanatory_variables %in% colnames(meta_table)] to debug
@@ -133,7 +133,7 @@ diversity_regression <- function(
       current_model<-lm(as.formula(paste(dependent_variable,"~",paste(names(current_model$coefficients)[complete.cases(current_model$coefficients)][-1],collapse="+"))),data=lm.dat)
     }
 
-    model_summaries[[i]] <- current_model 
+    model_summaries[[i]] <- current_model
   }
 
   return (structure(list(

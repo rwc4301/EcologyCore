@@ -11,15 +11,15 @@
 # The 'design' argument should be set to a formula https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/formula
 # By default, just regress against the Groups column, but you may want to include batch here too if accounting for batch effects
 # https://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.html
-de_create <- function(abund_table, meta_table, OTU_taxonomy, design = as.formula("~ Groups")) {
+differential_abundance <- function(physeq, design = as.formula("~ Groups")) {
   which_level<-"Genus" #Phylum Class Order Family Genus Otus
   sig = 0.05
   fold = 2
 
   # Process input data
-  # abund_table <- phyloseq::otu_table(physeq)
-  # meta_table <- phyloseq::sample_data(physeq)
-  # OTU_taxonomy <- phyloseq::tax_table(physeq)
+  abund_table <- phyloseq::otu_table(physeq)
+  meta_table <- phyloseq::sample_data(physeq)
+  OTU_taxonomy <- phyloseq::tax_table(physeq)
 
   #We will convert our table to DESeqDataSet object
   countData = round(as(abund_table, "matrix"), digits = 0)
@@ -38,12 +38,13 @@ de_create <- function(abund_table, meta_table, OTU_taxonomy, design = as.formula
 
   res_names <- DESeq2::resultsNames(dds)
 
-  return(list(res_names, dds))
-}
+  results <- DESeq2::results(dds, cooksCutoff = FALSE, name = name)
 
-de_summarise_results <- function(dds, name = NULL) {
-  res = DESeq2::results(dds, cooksCutoff = FALSE, name = name)
-  return(summary(res))
+  return(structure(list(
+    dds = dds,
+    res_names = res_names,
+    results = results
+  ), className = "ECDifferentialAbundance"))
 }
 
 de_get_results <- function(dds, name = NULL) {

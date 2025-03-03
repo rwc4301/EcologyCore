@@ -16,7 +16,7 @@ output:
 ```{r setup, include=FALSE}
 rm(list=ls())
 
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, dev = 'svg')
 
 # For testing
 devtools::load_all("..")
@@ -28,6 +28,9 @@ devtools::load_all("..")
 ```{r params, include=FALSE}
 #### Parameters ####
 rds_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/data/experiment.rds"
+
+distance_metrics = c("bray", "unifrac")
+PERMANOVA <- c("run", "week", "BED", "wet.vs.dry", "sweetening.flow")
 ```
 
 ```{r data_import, include=FALSE}
@@ -69,16 +72,21 @@ Beta diversity measures indicate differences in species composition between samp
 
 Group samples by run and compare flow conditions.
 
-```{r hypothesis, include=TRUE}
+```{r hypothesis, echo=TRUE}
 #### Hypothesis ####
 
-label="xRun"
-meta_table$Groups<-as.factor(as.character(meta_table$run))
-meta_table$Type<-as.factor(as.character(meta_table$sweetening.flow))
+label <- "xRun"
+meta_table$Groups <- as.factor(as.character(meta_table$run))
+meta_table$Type<-NULL
 meta_table$Type2<-NULL
 meta_table$Connections<-NULL
 
-PERMANOVA_vars <- c("run", "week", "BED", "wet.vs.dry", "sweetening.flow")
+print("Experiment:")
+print(label)
+print("PERMANOVA Variables:")
+print(PERMANOVA)
+print("Groups:")
+print(levels(meta_table$Groups))
 ```
 
 ```{r adjust, include=FALSE}
@@ -100,7 +108,7 @@ physeq <- join_phyloseq(abund_table, taxa_table, meta_table, taxa_tree)
 ```
 
 ```{r analyse, include=FALSE}
-result <- beta_diversity(physeq, PERMANOVA_variables = PERMANOVA_vars)
+result <- beta_diversity(physeq, PERMANOVA_variables = PERMANOVA, distance_metrics = distance_metrics)
 ```
 
 ```{r plot, echo=FALSE}

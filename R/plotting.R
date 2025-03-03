@@ -73,22 +73,3 @@ plot_theme_default <- function(
 
   return(plot)
 }
-
-save_plot <- function(plot, filename, format = "pdf", height, width) {
-  switch(format,
-    "pdf" = {
-      pdf(filename, height = height, width = width)
-      print(plot)
-      dev.off()
-    },
-    "svg" = {
-
-    },
-    "html" = {
-
-    },
-    "png" = {
-
-    }
-  )
-}

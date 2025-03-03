@@ -4,8 +4,8 @@ date: "`r Sys.Date()`"
 runtime: html
 output: 
   html_document:
-    fig_width: 16
-    fig_height: 10
+    fig_width: 9
+    fig_height: 6
     fig_caption: true
     number_sections: true
     toc: false
@@ -16,7 +16,7 @@ output:
 ```{r setup, include=FALSE}
 rm(list=ls())
 
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, dev = 'svg')
 
 # For testing
 devtools::load_all("..")
@@ -28,6 +28,8 @@ devtools::load_all("..")
 ```{r params, include=FALSE}
 #### Parameters ####
 rds_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/data/experiment.rds"
+
+indices <- c("Richness", "Shannon")
 ```
 
 ```{r data_import, include=FALSE, echo=TRUE}
@@ -96,7 +98,7 @@ taxa_table <- taxa_table[colnames(abund_table),]
 
 ```{r analyse, include=FALSE}
 #### Run analysis for taxa rank ####
-dt <- alpha_diversity(abund_table, taxa_table, meta_table, taxa_tree)
+dt <- alpha_diversity(abund_table, taxa_table, meta_table, taxa_tree, indices = indices)
 
 # Some absolutely fucking insufferable bug causes this to fail if its run in a package
 # so fuck it I'm sticking it here instead
@@ -112,8 +114,25 @@ result <- alpha_diversity_2(dt, pval, meta_table, "Groups")
 ```{r plot, echo=FALSE}
 p <- plot.ECAlphaDiversity(result) + theme_light() + theme(
   strip.background = element_rect(fill = "#cdcdcd"),
-  strip.text = element_text(color = "black")
+  strip.text = element_text(color = "black"),
+  legend.position = "bottom"
 )
 
 print(p)
+```
+
+```{r save, echo=FALSE, results='asis'}
+# Save plot in different formats
+ggsave("alpha_diversity_plot.svg", p, width = 16, height = 10)
+ggsave("alpha_diversity_plot.pdf", p, width = 16, height = 10)
+ggsave("alpha_diversity_plot.png", p, width = 16, height = 10, dpi = 300)
+
+cat('
+<div style="margin-top: 20px;">
+  <p><strong>Download plot:</strong></p>
+  <a href="alpha_diversity_plot.svg" download class="btn btn-default">Download SVG</a>
+  <a href="alpha_diversity_plot.pdf" download class="btn btn-default">Download PDF</a>
+  <a href="alpha_diversity_plot.png" download class="btn btn-default">Download PNG</a>
+</div>
+')
 ```

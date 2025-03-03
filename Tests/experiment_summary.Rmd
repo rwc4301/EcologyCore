@@ -16,7 +16,7 @@ output:
 ```{r setup, include=FALSE}
 rm(list=ls())
 
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, dev = 'svg')
 
 # For testing
 devtools::load_all("..")
