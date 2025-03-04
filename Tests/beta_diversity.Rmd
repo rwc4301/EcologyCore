@@ -119,3 +119,8 @@ p <- plot.ECBetaDiversity(result) + theme_light() + theme(
 
 print(p)
 ```
+
+```{r save, echo=FALSE, results='asis'}
+# Save result object as rds
+saveRDS(result, file = "beta_diversity.rds")
+```

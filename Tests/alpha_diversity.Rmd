@@ -122,17 +122,20 @@ print(p)
 ```
 
 ```{r save, echo=FALSE, results='asis'}
-# Save plot in different formats
-ggsave("alpha_diversity_plot.svg", p, width = 16, height = 10)
-ggsave("alpha_diversity_plot.pdf", p, width = 16, height = 10)
-ggsave("alpha_diversity_plot.png", p, width = 16, height = 10, dpi = 300)
+# Save result object as rds
+saveRDS(result, file = "alpha_diversity.rds")
 
-cat('
-<div style="margin-top: 20px;">
-  <p><strong>Download plot:</strong></p>
-  <a href="alpha_diversity_plot.svg" download class="btn btn-default">Download SVG</a>
-  <a href="alpha_diversity_plot.pdf" download class="btn btn-default">Download PDF</a>
-  <a href="alpha_diversity_plot.png" download class="btn btn-default">Download PNG</a>
-</div>
-')
+# Save plot in different formats
+#ggsave("alpha_diversity_plot.svg", p, width = 16, height = 10)
+#ggsave("alpha_diversity_plot.pdf", p, width = 16, height = 10)
+#ggsave("alpha_diversity_plot.png", p, width = 16, height = 10, dpi = 300)
+
+#cat('
+#<div style="margin-top: 20px;">
+#  <p><strong>Download plot:</strong></p>
+#  <a href="alpha_diversity_plot.svg" download class="btn btn-default">Download SVG</a>
+#  <a href="alpha_diversity_plot.pdf" download class="btn btn-default">Download PDF</a>
+#  <a href="alpha_diversity_plot.png" download class="btn btn-default">Download PNG</a>
+#</div>
+#')
 ```

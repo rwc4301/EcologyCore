@@ -6,7 +6,7 @@
 # library(stringr)
 # library(grid)
 
-beta_diversity <- function(physeq, PERMANOVA_variables, distance_metrics = c("bray", "unifrac", "wunifrac"), kind = "se") {
+beta_diversity <- function(physeq, PERMANOVA_variables, distance_metrics = c("bray", "unifrac", "wunifrac"), kind = "se", confidence_limit = 0.95) {
   #Reference: http://stackoverflow.com/questions/13794419/plotting-ordiellipse-function-from-vegan-package-onto-nmds-plot-created-in-ggplo
   #Data frame df_ell contains values to show ellipses. It is calculated with function veganCovEllipse which is hidden in vegan package. This function is applied to each level of NMDS (group) and it uses also function cov.wt to calculate covariance matrix.
   veganCovEllipse<-function (cov, center = c(0, 0), scale = 1, npoints = 100)
@@ -46,7 +46,7 @@ beta_diversity <- function(physeq, PERMANOVA_variables, distance_metrics = c("br
     dist <- phyloseq::distance(physeq, d)
     sol <- cmdscale(dist, eig = TRUE)
     # aov <- vegan::adonis(as.formula(paste("dist ~", paste(PERMANOVA_variables, collapse = "+"))), data = meta_table[rownames(phyloseq::otu_table(physeq)), ])
-    aov <- vegan::adonis2(as.formula(paste("dist ~", paste(PERMANOVA_variables, collapse = "+"))), data = meta_table)
+    aov <- vegan::adonis(as.formula(paste("dist ~", paste(PERMANOVA_variables, collapse = "+"))), data = meta_table)
 
     if (!is.null(sol)) {
       sol <- append(sol, list(metric = d))
@@ -68,7 +68,7 @@ beta_diversity <- function(physeq, PERMANOVA_variables, distance_metrics = c("br
     }
 
     plot.new()
-    ord<-vegan::ordiellipse(sol, interaction(meta_table$Groups,meta_table$Type2),display = "sites", kind = kind, conf = 0.95, label = T)
+    ord<-vegan::ordiellipse(sol, interaction(meta_table$Groups,meta_table$Type2),display = "sites", kind = kind, conf = confidence_limit, label = T)
     dev.off()
 
 
@@ -262,7 +262,7 @@ plot.ECBetaDiversity <- function(value) {
         if(draw_ellipses_and_not_polygons){
           p<-p+ geom_path(data=df_ell, aes(x=x, y=y, group = metric), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
         } else {
-          p<-p+ geom_polygon(data=df_ell, aes(x=x, y=y, group = metric, fill=Groups), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
+          p<-p+ geom_polygon(data=df_ell, aes(x=x, y=y, group = Groups, fill=Groups), size=linesize_ellipses_polygons, linetype=linetype_ellipses_polygons,alpha=opacity_ellipses_polygons, show.legend = FALSE)
         }
       } else {
         for (q in unique(as.numeric(meta_table$Groups))){

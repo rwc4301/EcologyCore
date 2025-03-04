@@ -144,12 +144,16 @@ cat('</div>\n\n')
 ## Overview
 ```{r overview_table, echo=FALSE}
 overview_stats <- data.frame(
-  Metric = c("Total Number of Taxa", "Number of Samples", "Mean Reads per Sample",
-             "Minimum Reads", "Maximum Reads"),
+  Metric = c("Total Number of Taxa", "Number of Samples", 
+             "Minimum Reads", "1st Quartile Reads", "Median Reads", 
+             "Mean Reads", "3rd Quartile Reads", "Maximum Reads"),
   Value = c(ntaxa(physeq), 
             nsamples(physeq),
-            round(mean(sample_sums(physeq))),
             min(sample_sums(physeq)),
+            quantile(sample_sums(physeq), 0.25),
+            median(sample_sums(physeq)),
+            round(mean(sample_sums(physeq))),
+            quantile(sample_sums(physeq), 0.75),
             max(sample_sums(physeq)))
 )
 
