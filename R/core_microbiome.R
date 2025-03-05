@@ -370,7 +370,7 @@ plot.ECCOccupancyAbundance <- function(value) {
   #TODO: highlight on the same occupancy-abundance plot OTUs that are above and below the neutral model prediction
   #TODO: add to the plot the above.pred and below.pred values
 
-  print(p)
+  return(p)
 }
 
 plot.ECCRankedSimilarity <- function(value) {
@@ -390,7 +390,7 @@ plot.ECCRankedSimilarity <- function(value) {
 
   p <- p + facet_wrap(~ Title)
 
-  print(p)
+  return(p)
 }
 
 plot.ECCoreMicrobiome <- function(value, what_detection = "absolute", horizontal = TRUE) {
@@ -422,7 +422,7 @@ plot.ECCoreMicrobiome <- function(value, what_detection = "absolute", horizontal
   }
 
   if (!is.null(value$taxa_table)) {
-    rownames(core_otu) <- expand_otu_names(rownames(core_otu), value$taxa_table, use_short_names = FALSE)
+    rownames(core_otu) <- expand_otu_names(rownames(core_otu), value$taxa_table, use_short_names = TRUE)
   }
 
   p <- microbiome::plot_core(

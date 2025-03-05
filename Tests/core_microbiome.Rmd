@@ -112,8 +112,14 @@ core <- core_microbiome(physeq, group_by = "run", group = "Run 1")
 ```
 
 ```{r, echo=FALSE}
-p <- plot_theme_default(plot.ECCOccupancyAbundance(core))
-p <- p + theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5), legend.title = element_text(size = 12))
+p <- plot.ECCOccupancyAbundance(core) + theme_light() + theme(
+  strip.background = element_rect(fill = "#cdcdcd"),
+  strip.text = element_text(color = "black"),
+  axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+  legend.title = element_text(size = 12),
+  legend.position = "bottom"
+)
+
 print(p)
 ```
 

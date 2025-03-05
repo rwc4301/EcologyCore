@@ -205,8 +205,8 @@ plot.ECBetaDiversity <- function(value) {
   PERMANOVA_variables = value$PERMANOVA_variables
   meta_table = value$meta_table
 
-  point_size = 5
-  point_opacity = 0.8
+  point_size = 2
+  point_opacity = 0.25
   # number_of_rows = 1
   # use_provided_colors = FALSE
 
