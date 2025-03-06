@@ -82,7 +82,7 @@ class EcologicalData:
         # Filter taxonomy if present
         filtered_taxonomy = None
         if self.taxonomy is not None:
-            filtered_taxonomy = self.taxonomy.loc[filtered_taxonomy.index.intersection(filtered_abundance.index)]
+            filtered_taxonomy = self.taxonomy.loc[self.taxonomy.index.intersection(filtered_abundance.index)]
         
         # Return new object
         return EcologicalData(

@@ -64,7 +64,7 @@ pip install -e .
 
 ## Dependencies
 
-- Python 3.9+
+- **Python 3.9+** (Python 2.x is NOT supported)
 - numpy
 - pandas
 - matplotlib
@@ -109,7 +109,20 @@ alpha_plot = alpha_diversity_boxplot(alpha_div, metric="shannon", group_col="Gro
 beta_plot = ordination_plot(pcoa, metadata=metadata, color_col="Group")
 ```
 
-See the `examples` directory for complete workflows.
+To run the example workflow, follow these steps:
+
+```bash
+# From the project root directory
+# First, set up the environment (only needed once)
+./setup_env.sh
+
+# Then run the example
+./run_example.sh
+```
+
+The first script creates a Python virtual environment with all required dependencies. The second script runs the example workflow in this environment. The output visualizations will be saved in the `examples/plots` directory.
+
+See the `examples` directory for complete workflow examples.
 
 ## Module Structure
 
