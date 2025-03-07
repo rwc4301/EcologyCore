@@ -16,7 +16,7 @@ output:
 ```{r setup, include=FALSE}
 rm(list=ls())
 
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, dev = 'pdf')
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, dev = 'svg')
 
 # For testing
 devtools::load_all("..")
@@ -34,6 +34,7 @@ iterations=1000
 Top_N_abundant_OTUs=2000
 abundance.weighted = TRUE
 null.model= "trialswap" #taxa.labels richness  frequency sample.pool phylogeny.pool independentswap trialswap
+
 text_size=16
 axis_text_size=14
 strip_text_size=18
@@ -103,6 +104,8 @@ abund_table <- abund_table[rownames(meta_table),]
 abund_table <- abund_table[,colSums(abund_table) > 0]
 #Adjust OTU taxonomy
 taxa_table <- taxa_table[colnames(abund_table),]
+
+physeq <- join_phyloseq(abund_table, taxa_table, meta_table, taxa_tree)
 ```
 
 # Environmental Filtering
@@ -112,9 +115,7 @@ To give an account of environmental filtering (phylogenetic overdispersion versu
 The NTI is calculated using mntd() and ses.mntd(), and the mean phylogenetic diversity (MPD) and NRI are calculated using mpd() and ses.mpd() functions from the picante package (Kembel et al., 2010). NTI and NRI represent the negatives of the output from ses.mntd() and ses.mpd(), respectively. Additionally, they quantify the number of standard deviations that separate the observed values from the mean of the null distribution (999 randomisation using null.model-‘richness’ in the ses.mntd() and ses.mpd() functions and only considering taxa as either present or absent regardless of their relative abundance). The top 1000 most abundant ASVs are used for the calculations, based on established recommendations (Stegen et al., 2012). 
 
 ```{r analyse, include=FALSE}
-#new_physeq <- join_phyloseq(abund_table, taxa_table, meta_table, taxa_tree)
-
-result <- environmental_filtering(abund_table, taxa_table, meta_table, taxa_tree)
+result <- environmental_filtering(physeq, runs = runs, iterations = iterations, top_n = Top_N_abundant_OTUs, abundance.weighted = abundance.weighted, null.model = null.model)
 ```
 
 ```{r plot, echo=FALSE}
