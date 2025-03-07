@@ -54,7 +54,7 @@ nst <- function(
     dist.method = distance_measure,
     null.model = null_model,
     output.rand = TRUE,
-    nworker = parallel::detectCores(),
+    nworker = parallel::detectCores() - 1,
     SES = SES,
     RC = RC
   )
