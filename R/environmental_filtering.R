@@ -3,7 +3,9 @@
 #to give an account of stochastic versus deterministic nature of microbial communities
 #v1.2 (All metrics are now being saved)
 
-environmental_filtering <- function(physeq, runs = 999, iterations = 1000, top_n = 2000, abundance.weighted = FALSE, null.model = c("taxa.labels", "richness", "frequency", "sample.pool", "phylogeny.pool", "independentswap", "trialswap")) {
+environmental_filtering <- function(physeq, runs = 999, iterations = 1000, top_n = 2000, abundance.weighted = FALSE, 
+                              null.model = c("taxa.labels", "richness", "frequency", "sample.pool", "phylogeny.pool", "independentswap", "trialswap"),
+                              parallel = TRUE, ncores = parallel::detectCores() - 1) {
   null.model <- match.arg(null.model)
 
   # Process input data
@@ -28,8 +30,18 @@ environmental_filtering <- function(physeq, runs = 999, iterations = 1000, top_n
   dist <- cophenetic(OTU_tree)
 
   #Reference http://kembellab.ca/r-workshop/biodivR/SK_Biodiversity_R.html
-  abund_table.sesmpd <- ses.mpd(comm, dist, null.model = null.model, abundance.weighted = abundance.weighted, runs = runs, iterations = iterations)
-  abund_table.sesmntd <- ses.mntd(comm, dist, null.model = null.model, abundance.weighted = abundance.weighted, runs = runs, iterations = iterations)
+  if (parallel) {
+    abund_table.sesmpd <- ses.mpd(comm, dist, null.model = null.model, abundance.weighted = abundance.weighted, 
+                                 runs = runs, iterations = iterations, ncores = ncores)
+    abund_table.sesmntd <- ses.mntd(comm, dist, null.model = null.model, abundance.weighted = abundance.weighted, 
+                                   runs = runs, iterations = iterations, ncores = ncores)
+  } else {
+    # If parallel is FALSE, use 1 core
+    abund_table.sesmpd <- ses.mpd(comm, dist, null.model = null.model, abundance.weighted = abundance.weighted, 
+                                 runs = runs, iterations = iterations, ncores = 1)
+    abund_table.sesmntd <- ses.mntd(comm, dist, null.model = null.model, abundance.weighted = abundance.weighted, 
+                                   runs = runs, iterations = iterations, ncores = 1)
+  }
 
   #Write all the metrics in a file for further analyses elsewhere
   data_to_write<-data.frame(abund_table.sesmpd[,"mpd.obs.z",drop=F],abund_table.sesmntd[,"mntd.obs.z",drop=F])
@@ -142,22 +154,40 @@ ses.mpd <- function(
   mpd.obs <- mpd(samp, dis, abundance.weighted = abundance.weighted)
   null.model <- match.arg(null.model)
 
-  # Setup parallel backend
-  cl <- parallel::makeCluster(ncores)
-  parallel::clusterExport(cl, c("mpd", "taxaShuffle", "randomizeMatrix", "iterations"))
+  if (ncores <= 1) {
+    # Use replicate for single-core computation (faster than cluster overhead)
+    mpd.rand <- switch(null.model,
+      taxa.labels = t(replicate(runs, mpd(samp, taxaShuffle(dis), abundance.weighted = abundance.weighted))),
+      richness = t(replicate(runs, mpd(randomizeMatrix(samp, null.model = "richness"), dis, abundance.weighted))),
+      frequency = t(replicate(runs, mpd(randomizeMatrix(samp, null.model = "frequency"), dis, abundance.weighted))),
+      sample.pool = t(replicate(runs, mpd(randomizeMatrix(samp, null.model = "richness"), dis, abundance.weighted))),
+      phylogeny.pool = t(replicate(runs, mpd(randomizeMatrix(samp, null.model = "richness"), taxaShuffle(dis), abundance.weighted))),
+      independentswap = t(replicate(runs, mpd(randomizeMatrix(samp, null.model = "independentswap", iterations), dis, abundance.weighted))),
+      trialswap = t(replicate(runs, mpd(randomizeMatrix(samp, null.model = "trialswap", iterations), dis, abundance.weighted)))
+    )
+  } else {
+    # Setup parallel backend for multi-core computation
+    cl <- parallel::makeCluster(ncores)
+    on.exit(parallel::stopCluster(cl))
+    
+    parallel::clusterExport(cl, c("mpd", "taxaShuffle", "randomizeMatrix", "iterations", "samp", "dis", "abundance.weighted"))
+    
+    # Load required packages on each node
+    parallel::clusterEvalQ(cl, {
+      library(picante)
+    })
 
-  # Parallel computation of null model
-  mpd.rand <- switch(null.model,
-    taxa.labels = t(parallel::parSapply(cl, 1:runs, function(x) mpd(samp, taxaShuffle(dis), abundance.weighted = abundance.weighted))),
-    richness = t(parallel::parSapply(cl, 1:runs, function(x) mpd(randomizeMatrix(samp, null.model = "richness"), dis, abundance.weighted))),
-    frequency = t(parallel::parSapply(cl, 1:runs, function(x) mpd(randomizeMatrix(samp, null.model = "frequency"), dis, abundance.weighted))),
-    sample.pool = t(parallel::parSapply(cl, 1:runs, function(x) mpd(randomizeMatrix(samp, null.model = "richness"), dis, abundance.weighted))),
-    phylogeny.pool = t(parallel::parSapply(cl, 1:runs, function(x) mpd(randomizeMatrix(samp, null.model = "richness"), taxaShuffle(dis), abundance.weighted))),
-    independentswap = t(parallel::parSapply(cl, 1:runs, function(x) mpd(randomizeMatrix(samp, null.model = "independentswap", iterations), dis, abundance.weighted))),
-    trialswap = t(parallel::parSapply(cl, 1:runs, function(x) mpd(randomizeMatrix(samp, null.model = "trialswap", iterations), dis, abundance.weighted)))
-  )
-
-  parallel::stopCluster(cl)
+    # Parallel computation of null model
+    mpd.rand <- switch(null.model,
+      taxa.labels = t(parallel::parSapply(cl, 1:runs, function(x) mpd(samp, taxaShuffle(dis), abundance.weighted = abundance.weighted))),
+      richness = t(parallel::parSapply(cl, 1:runs, function(x) mpd(randomizeMatrix(samp, null.model = "richness"), dis, abundance.weighted))),
+      frequency = t(parallel::parSapply(cl, 1:runs, function(x) mpd(randomizeMatrix(samp, null.model = "frequency"), dis, abundance.weighted))),
+      sample.pool = t(parallel::parSapply(cl, 1:runs, function(x) mpd(randomizeMatrix(samp, null.model = "richness"), dis, abundance.weighted))),
+      phylogeny.pool = t(parallel::parSapply(cl, 1:runs, function(x) mpd(randomizeMatrix(samp, null.model = "richness"), taxaShuffle(dis), abundance.weighted))),
+      independentswap = t(parallel::parSapply(cl, 1:runs, function(x) mpd(randomizeMatrix(samp, null.model = "independentswap", iterations), dis, abundance.weighted))),
+      trialswap = t(parallel::parSapply(cl, 1:runs, function(x) mpd(randomizeMatrix(samp, null.model = "trialswap", iterations), dis, abundance.weighted)))
+    )
+  }
 
   # Calculate statistics
   mpd.rand.mean <- apply(X = mpd.rand, MARGIN = 2, FUN = mean, na.rm = TRUE)
@@ -193,22 +223,40 @@ ses.mntd <- function(
   mntd.obs <- mntd(samp, dis, abundance.weighted)
   null.model <- match.arg(null.model)
 
-  # Setup parallel backend
-  cl <- parallel::makeCluster(ncores)
-  parallel::clusterExport(cl, c("mntd", "taxaShuffle", "randomizeMatrix", "iterations"))
+  if (ncores <= 1) {
+    # Use replicate for single-core computation (faster than cluster overhead)
+    mntd.rand <- switch(null.model,
+      taxa.labels = t(replicate(runs, mntd(samp, taxaShuffle(dis), abundance.weighted))),
+      richness = t(replicate(runs, mntd(randomizeMatrix(samp, null.model = "richness"), dis, abundance.weighted))),
+      frequency = t(replicate(runs, mntd(randomizeMatrix(samp, null.model = "frequency"), dis, abundance.weighted))),
+      sample.pool = t(replicate(runs, mntd(randomizeMatrix(samp, null.model = "richness"), dis, abundance.weighted))),
+      phylogeny.pool = t(replicate(runs, mntd(randomizeMatrix(samp, null.model = "richness"), taxaShuffle(dis), abundance.weighted))),
+      independentswap = t(replicate(runs, mntd(randomizeMatrix(samp, null.model = "independentswap", iterations), dis, abundance.weighted))),
+      trialswap = t(replicate(runs, mntd(randomizeMatrix(samp, null.model = "trialswap", iterations), dis, abundance.weighted)))
+    )
+  } else {
+    # Setup parallel backend for multi-core computation
+    cl <- parallel::makeCluster(ncores)
+    on.exit(parallel::stopCluster(cl))
+    
+    parallel::clusterExport(cl, c("mntd", "taxaShuffle", "randomizeMatrix", "iterations", "samp", "dis", "abundance.weighted"))
+    
+    # Load required packages on each node
+    parallel::clusterEvalQ(cl, {
+      library(picante)
+    })
 
-  # Parallel computation of null model
-  mntd.rand <- switch(null.model,
-    taxa.labels = t(parallel::parSapply(cl, 1:runs, function(x) mntd(samp, taxaShuffle(dis), abundance.weighted))),
-    richness = t(parallel::parSapply(cl, 1:runs, function(x) mntd(randomizeMatrix(samp, null.model = "richness"), dis, abundance.weighted))),
-    frequency = t(parallel::parSapply(cl, 1:runs, function(x) mntd(randomizeMatrix(samp, null.model = "frequency"), dis, abundance.weighted))),
-    sample.pool = t(parallel::parSapply(cl, 1:runs, function(x) mntd(randomizeMatrix(samp, null.model = "richness"), dis, abundance.weighted))),
-    phylogeny.pool = t(parallel::parSapply(cl, 1:runs, function(x) mntd(randomizeMatrix(samp, null.model = "richness"), taxaShuffle(dis), abundance.weighted))),
-    independentswap = t(parallel::parSapply(cl, 1:runs, function(x) mntd(randomizeMatrix(samp, null.model = "independentswap", iterations), dis, abundance.weighted))),
-    trialswap = t(parallel::parSapply(cl, 1:runs, function(x) mntd(randomizeMatrix(samp, null.model = "trialswap", iterations), dis, abundance.weighted)))
-  )
-
-  parallel::stopCluster(cl)
+    # Parallel computation of null model
+    mntd.rand <- switch(null.model,
+      taxa.labels = t(parallel::parSapply(cl, 1:runs, function(x) mntd(samp, taxaShuffle(dis), abundance.weighted))),
+      richness = t(parallel::parSapply(cl, 1:runs, function(x) mntd(randomizeMatrix(samp, null.model = "richness"), dis, abundance.weighted))),
+      frequency = t(parallel::parSapply(cl, 1:runs, function(x) mntd(randomizeMatrix(samp, null.model = "frequency"), dis, abundance.weighted))),
+      sample.pool = t(parallel::parSapply(cl, 1:runs, function(x) mntd(randomizeMatrix(samp, null.model = "richness"), dis, abundance.weighted))),
+      phylogeny.pool = t(parallel::parSapply(cl, 1:runs, function(x) mntd(randomizeMatrix(samp, null.model = "richness"), taxaShuffle(dis), abundance.weighted))),
+      independentswap = t(parallel::parSapply(cl, 1:runs, function(x) mntd(randomizeMatrix(samp, null.model = "independentswap", iterations), dis, abundance.weighted))),
+      trialswap = t(parallel::parSapply(cl, 1:runs, function(x) mntd(randomizeMatrix(samp, null.model = "trialswap", iterations), dis, abundance.weighted)))
+    )
+  }
 
   # Calculate statistics
   mntd.rand.mean <- apply(X = mntd.rand, MARGIN = 2, FUN = mean, na.rm = TRUE)

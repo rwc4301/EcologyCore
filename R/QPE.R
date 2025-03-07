@@ -19,7 +19,7 @@
 # library(ggplot2)
 # library(yarrr)
 
-qpe <- function(physeq) {
+qpe <- function(physeq, parallel = FALSE, ncores = NULL) {
   #Pruning and subsampling
   physeq<-prune_taxa(taxa_sums(physeq)>10, physeq)
 
@@ -120,13 +120,62 @@ qpe <- function(physeq) {
     beta.reps = 999;
     rand.weighted.bMNTD.comp = array(c(-999),dim=c(ncol(abund_table_ems_group),ncol(abund_table_ems_group),beta.reps));
     dim(rand.weighted.bMNTD.comp);
-
-    for (rep in 1:beta.reps) {
-
-      rand.weighted.bMNTD.comp[,,rep] = as.matrix(picante::comdistnt(t(abund_table_ems_group),taxaShuffle(cophenetic(OTU_tree_ems_group)),abundance.weighted=T,exclude.conspecifics = F));
-
-      print(c(date(),rep));
-
+    
+    # Check if parallel processing is enabled
+    if(parallel) {
+      # Create a local cluster for this group's processing
+      if(is.null(ncores)) {
+        ncores <- parallel::detectCores() - 1
+      }
+      cl <- parallel::makeCluster(ncores)
+      on.exit(parallel::stopCluster(cl), add = TRUE)
+      
+      # Export necessary variables and functions to cluster
+      parallel::clusterExport(cl, c("abund_table_ems_group", "OTU_tree_ems_group", "taxaShuffle"), 
+                            envir = environment())
+      
+      # Make sure packages are loaded on all cores
+      parallel::clusterEvalQ(cl, {
+        library(picante)
+        library(stats)
+      })
+      
+      # Define the function to run for each replicate
+      run_rep <- function(rep) {
+        result <- as.matrix(picante::comdistnt(
+          t(abund_table_ems_group),
+          taxaShuffle(cophenetic(OTU_tree_ems_group)),
+          abundance.weighted=TRUE,
+          exclude.conspecifics = FALSE
+        ))
+        return(result)
+      }
+      
+      # Run in parallel
+      results <- parallel::parLapply(cl, 1:beta.reps, function(rep) {
+        result <- run_rep(rep)
+        return(result)
+      })
+      
+      # Assign results to the array
+      for(rep in 1:beta.reps) {
+        rand.weighted.bMNTD.comp[,,rep] <- results[[rep]]
+        if(rep %% 10 == 0) print(c(date(), rep))
+      }
+      
+      # Close the cluster
+      parallel::stopCluster(cl)
+    } else {
+      # Original sequential code
+      for (rep in 1:beta.reps) {
+        rand.weighted.bMNTD.comp[,,rep] = as.matrix(picante::comdistnt(
+          t(abund_table_ems_group),
+          taxaShuffle(cophenetic(OTU_tree_ems_group)),
+          abundance.weighted=TRUE,
+          exclude.conspecifics = FALSE
+        ))
+        print(c(date(),rep))
+      }
     }
 
     weighted.bNTI = matrix(c(NA),nrow=ncol(abund_table_ems_group),ncol=ncol(abund_table_ems_group));
