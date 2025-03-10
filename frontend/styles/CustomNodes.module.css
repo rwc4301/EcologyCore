@@ -1,0 +1,151 @@
+.multiPortNode {
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background: white;
+  padding: 10px;
+  width: 200px;
+  min-height: 80px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+.nodeHeader {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  text-align: center;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.portLabel {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  white-space: nowrap;
+  margin: 4px 0;
+  color: #555;
+}
+
+.portName {
+  margin: 0 5px;
+  font-size: 11px;
+}
+
+.portType {
+  color: #888;
+  margin-left: 3px;
+  font-size: 10px;
+}
+
+.handle {
+  width: 8px;
+  height: 8px;
+  background-color: #657ee4;
+  border: 1px solid #3367d6;
+}
+
+.handle:hover {
+  background-color: #3367d6;
+}
+
+.defaultHandle {
+  width: 10px;
+  height: 10px;
+  background-color: #657ee4;
+  border: 1px solid #3367d6;
+}
+
+/* Styles for port controls in the inspector */
+.portControls {
+  margin-top: 16px;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.portSection {
+  margin-bottom: 12px;
+}
+
+.portHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.portHeading h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #555;
+}
+
+.portHeading button {
+  background-color: #4d90fe;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.portItem {
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.portItem .removeButton {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.portItem .removeButton:hover {
+  opacity: 1;
+}
+
+.portForm {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.portForm .formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.portForm .formGroup label {
+  font-size: 11px;
+  color: #555;
+}
+
+.portForm .formGroup input {
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.fullWidth {
+  grid-column: 1 / -1;
+}

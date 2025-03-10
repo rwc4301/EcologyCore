@@ -15,6 +15,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import NodeInspector from './NodeInspector';
+import { nodeTypes } from './CustomNodes';
 
 const initialNodes: Node[] = [
   {
@@ -34,6 +35,22 @@ const initialNodes: Node[] = [
     type: 'output',
     data: { label: 'Output Node', output: 'final result' },
     position: { x: 250, y: 225 },
+  },
+  {
+    id: '4',
+    type: 'multiPort',
+    data: { 
+      label: 'Multi-Port Node',
+      inputs: [
+        { id: 'input1', label: 'Input 1', type: 'number' },
+        { id: 'input2', label: 'Input 2', type: 'string' }
+      ],
+      outputs: [
+        { id: 'output1', label: 'Output 1', type: 'array' },
+        { id: 'output2', label: 'Output 2', type: 'object' }
+      ]
+    },
+    position: { x: 500, y: 125 },
   }
 ];
 
@@ -90,6 +107,7 @@ export default function WorkflowEditor() {
         <ReactFlow
           nodes={nodes}
           edges={edges}
+          nodeTypes={nodeTypes}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
