@@ -124,17 +124,41 @@ diversity_regression <- function(
 
   best_model<-lm(get_model_formula(best_variable_model,models,dependent_variable),data=lm.dat)
 
-  # Get summaries for the best models (default top 5)
-  model_summaries <- vector("list", length = num_top_models)
-  for (i in 1:num_top_models) {
-    tmp<-get_model_formula(i,models,dependent_variable)
-    current_model<-lm(get_model_formula(i,models,dependent_variable),data=lm.dat)
-    if(length(current_model$coefficients)>sum(complete.cases(current_model$coefficients))){
-      current_model<-lm(as.formula(paste(dependent_variable,"~",paste(names(current_model$coefficients)[complete.cases(current_model$coefficients)][-1],collapse="+"))),data=lm.dat)
+  model_formulas <- lapply(1:nvmax, function(x) get_model_formula(x, models, response_variable))
+  model_details <- lapply(model_formulas, function(x) {
+    m <- lm(x, data = lm.dat)
+    if (length(m$coefficients) > sum(complete.cases(m$coefficients))) {
+      m <- lm(as.formula(paste(response_variable,"~",paste(names(m$coefficients)[complete.cases(m$coefficients)][-1],collapse="+"))),data=lm.dat)
     }
 
-    model_summaries[[i]] <- current_model
-  }
+    return(m)
+  })
+
+  model_summaries <- lapply(model_details, function(x) {
+      # Get standardized coefficients
+    standardized_model <- lm(scale(model.frame(x)[,1]) ~ scale(model.frame(x)[,-1]))
+    std_coef <- coef(standardized_model)
+    std_se <- summary(standardized_model)$coefficients[,2]
+
+    # Create summary data frame
+    summary_df <- data.frame(
+      # Term = names(coef(x)),
+      Estimate = coef(x),
+      Std_Error = summary(x)$coefficients[,2],
+      Std_Beta = c(NA, std_coef[-1]),  # NA for intercept
+      Std_Beta_SE = c(NA, std_se[-1]), # NA for intercept
+      t_value = summary(x)$coefficients[,3],
+      p_value = summary(x)$coefficients[,4]
+    )
+
+    # Format p-values with stars
+    summary_df$p_value <-
+      ifelse(summary_df$p_value < 0.001, paste(summary_df$p_value, "***"),
+      ifelse(summary_df$p_value < 0.01, paste(summary_df$p_value, "**"),
+      ifelse(summary_df$p_value < 0.05, paste(summary_df$p_value, "*"), "")))
+
+    return(summary_df)
+  })
 
   return (structure(list(
     CV_table = CV_table,
@@ -180,4 +204,53 @@ plot_model_summaries <- function(value) {
   return (p)
   #print(p)
   #dev.off()
+}
+
+plot_all <- function() {
+  all_models_coef <- all_models_coef[all_models_coef$Term != "(Intercept)", ]
+
+  # Custom transformation function for square root including negative values
+  custom_sqrt_transform <- function(x, c = 1) {
+    sign(x) * sqrt(abs(x) + c)
+  }
+
+  custom_cubed_root_transform <- function(x) {
+    sign(x) * abs(x)^(1/3)  # Cube root transformation
+  }
+
+  # Create a transformation object
+  sqrt_transform <- scales::trans_new(
+    name = "custom_sqrt",
+    transform = custom_sqrt_transform,
+    inverse = function(x) {
+      sign(x) * (x^2 - 1)  # Inverse transformation
+    }
+  )
+
+  cubed_root_transform <- scales::trans_new(
+    name = "custom_cubed_root",
+    transform = custom_cubed_root_transform,
+    inverse = function(x) {
+      sign(x) * (x^3)  # Inverse transformation
+    }
+  )
+
+  # Apply the transformation to the heatmap
+  p <- ggplot(all_models_coef, aes(x = factor(Model), y = Term, fill = Estimate)) +
+    geom_tile() +
+    geom_text(aes(label = Stars), color = "black", size = 3) +
+    scale_fill_gradient2(low = "#2166AC", mid = "white", high = "#B2182B", 
+                        midpoint = 0,
+                        trans = sqrt_transform,  # Use the custom transformation
+                        name = "Transformed\nCoefficient") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 0),
+          axis.text.y = element_text(size = 8),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank()) +
+    labs(x = "Model Number", y = "Variable",
+        title = "Square Root Transformed Coefficients Across Models",
+        subtitle = "* p<0.05, ** p<0.01, *** p<0.001")
+
+  return(p)
 }
