@@ -1,0 +1,150 @@
+---
+title: "Regression Analysis"
+date: "`r Sys.Date()`"
+runtime: html
+output: 
+  html_document:
+    fig_width: 9
+    fig_height: 6
+    fig_caption: true
+    number_sections: true
+    toc: false
+    toc_float:
+      collapsed: false
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, dev = 'svg')
+
+# For testing
+devtools::load_all("..")
+
+# For production
+# library(EcologyCore)
+
+library(dplyr)
+```
+
+```{r params, include=FALSE}
+regression_method <- "forward" #exhaustive, backward, forward, seqrep
+really.big <- FALSE #TRUE/FALSE
+num_top_models <- 5
+validation_method <- "cv"
+k_fold <- 5
+```
+
+```{r data_import, include=FALSE, echo=TRUE}
+meta_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/data/metadata.csv"
+alpha_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/results/alpha_diversity/AlphaDiversity.csv"
+enviro_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/results/environmental_filtering/EnvironmentalFiltering.csv"
+
+meta_table <- read.csv(meta_path, header = TRUE, row.names = 1)
+alpha_table <- read.csv(alpha_path, header = TRUE, row.names = 1)
+enviro_table <- read.csv(enviro_path, header = TRUE, row.names = 1)
+
+# Find common row names in all three tables
+common_rows <- Reduce(intersect, list(rownames(meta_table), rownames(alpha_table), rownames(enviro_table)))
+
+# Subset each table to keep only the common rows
+meta_table_filtered <- meta_table[common_rows, , drop = FALSE]
+alpha_table_filtered <- alpha_table[common_rows, , drop = FALSE]
+enviro_table_filtered <- enviro_table[common_rows, , drop = FALSE]
+
+# Combine tables by row names
+df <- cbind(meta_table_filtered, alpha_table_filtered, enviro_table_filtered)
+```
+
+```{r hypothesis, include=FALSE}
+response_variables <- c("Shannon", "Richness", "NRI", "NTI")
+explanatory_variables <- c(
+  "pH",
+  "Headloss",
+  "temperature..C.",
+  "Neat.coliform.2000",
+  "neat.e.coli.2000",
+  "Cl.perfrigens.conf",
+  "Enterococci.confirmed.100ml",
+  "X22C.Plate.Count.Neat",
+  "Conductivity.20C",
+  "Turbidity.FTU",
+  "Ammoniacal.Nitrogen",
+  "Ammonium.NH4",
+  "Nitrate.as.N",
+  "Nitrite.as.N",
+  "Alkalinity.as.CaCO3",
+  "Sulphate.as.SO4",
+  "Carbon.Total.Organic"
+)
+```
+
+# Regression Analysis
+
+We use a best subsets approach to correlate environmental variables with microbiome response metrics.
+
+## Correlation Matrix
+
+The following matrix shows the R^2 correlation between each pair of explanatory variables. Note that values > 0.9 indicate a linear dependence between predictors which is likely to artificially inflate beta coefficients. In this case, it is better to remove one of the predictors, or transform the data in some way to mask the effect.
+
+```{r corr_matrix, echo=FALSE}
+corr_matrix <- cor(df[,explanatory_variables], use = "pairwise.complete.obs")
+
+ggcorrplot::ggcorrplot(corr_matrix, type = "upper", lab = TRUE, colors = c("red", "white", "blue")) + 
+  ggtitle("Correlation Matrix of Predictors")
+```
+
+The function regsubsets() from the leaps R package (Lumley and Miller, 2009) is used to systematically build regression models to explain each metric via subsets of explanatory variables. Each model is then evaluated by using the train() function from the caret R package (Kuhn, 2008) to compute the k-fold cross-validation error (with k = 5). Statistics for each model are obtained using the tab_model() function from the sjPlot package (Lüdecke, 2018).
+
+## Best Models
+
+This table shows the best model for each response variable.
+
+```{r analyse, include=FALSE}
+results <- lapply(response_variables, function(x) diversity_regression(df, x, explanatory_variables, regression_method, really.big))
+results <- setNames(results, response_variables)
+```
+
+```{r, results='asis', echo=FALSE}
+#cv_errors <- lapply(1:length(results), function(i) {
+for (i in 1:length(results)) {
+  cat(sprintf("### %s\n\n", response_variables[i]))
+
+  # Ensure that we are only selecting samples for which the meta_table[,explanatory_variables] is complete
+  # TODO: add interpolation options?
+  lm.dat <- df
+  
+  lm.dat[, explanatory_variables] <- lapply(lm.dat[,explanatory_variables], function(x) as.numeric(as.character(x)))
+  lm.dat <- lm.dat[complete.cases(lm.dat[, explanatory_variables]),]
+  lm.dat <- lm.dat[complete.cases(lm.dat[, response_variables[i]]), , drop = FALSE]
+
+  lm.dat <- data.frame(lm.dat[, response_variables[i], drop = FALSE], lm.dat[, explanatory_variables, drop = FALSE])
+  
+  cv <- cross_validate(results[[i]], response_variables[i], lm.dat)
+  
+  cat(sprintf("\n\nThe following table shows the top %d models, ranked by k-fold cross-validation error. Lowest error is best.\n\n", num_top_models))
+
+  print(kableExtra::kbl(cv, format = "html", digits = 5, caption = sprintf("Cross-validation Errors for %s Models", response_variables[i])) %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE))
+  
+  cat(sprintf("\n\nThis heatmap shows the coefficients of the top %d models, ranked by k-fold cross-validation error.\n\n", num_top_models))
+  
+  model_details <- get_model_details(results[[i]], response_variables[i], lm.dat)
+  print(heatmap_all_models(model_details))
+
+  cat(sprintf("\n\nThe following tables show summary statistics for the top %d models, ranked by k-fold cross-validation error.\n\n", num_top_models))
+  
+  ms <- get_model_summaries(model_details)
+  
+  for (model in names(ms)) {
+    print(kableExtra::kbl(ms[[model]], format = "html", digits = 5, escape = TRUE, caption = sprintf("Summary Statistics for %s", model)) %>%
+      kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE))
+  }
+}
+
+  #return(cv)
+  #cat("This is the best model as determined by k-fold cross-validation error.\n\n")
+  #best <- best_model(results[[i]], response_variables[i], lm.dat)
+  #print(summary(best))
+#})
+```
