@@ -148,3 +148,121 @@ for (i in 1:length(results)) {
   #print(summary(best))
 #})
 ```
+
+## Summary Table
+
+```{r combined_heatmap, echo=FALSE}
+# Create a list to store model details for each response variable
+all_response_model_details <- list()
+# Also store the order information for each response variable
+model_orders <- list()
+
+# Loop through each response variable to collect model details
+for (i in 1:length(response_variables)) {
+  # Ensure that we are only selecting samples for which the meta_table[,explanatory_variables] is complete
+  lm.dat <- df
+  
+  lm.dat[, explanatory_variables] <- lapply(lm.dat[,explanatory_variables], function(x) as.numeric(as.character(x)))
+  lm.dat <- lm.dat[complete.cases(lm.dat[, explanatory_variables]),]
+  lm.dat <- lm.dat[complete.cases(lm.dat[, response_variables[i]]), , drop = FALSE]
+
+  lm.dat <- data.frame(lm.dat[, response_variables[i], drop = FALSE], lm.dat[, explanatory_variables, drop = FALSE])
+  
+  # Get cross-validation errors to determine model order
+  cv <- cross_validate(results[[i]], response_variables[i], lm.dat)
+  
+  # Get model details for this response variable
+  model_details <- get_model_details(results[[i]], response_variables[i], lm.dat)
+  
+  # Store in the list with the response variable name
+  all_response_model_details[[response_variables[i]]] <- model_details
+  
+  # Store the order of models based on CV error
+  model_orders[[response_variables[i]]] <- rownames(cv)
+}
+
+# Function to create a combined heatmap of all models across all response variables
+combined_heatmap <- function(all_response_model_details, model_orders) {
+  # Create a combined dataframe of all models' coefficients and significance
+  all_models_coef <- do.call(rbind, lapply(names(all_response_model_details), function(response_var) {
+    model_details <- all_response_model_details[[response_var]]
+    model_names <- names(model_details)
+    
+    # Get the order for this response variable
+    order <- model_orders[[response_var]]
+    
+    combined_table <- do.call(rbind, lapply(seq_along(model_details), function(i) {
+      x <- model_details[[i]]
+      
+      # Get model frame and clean variable names
+      mf <- model.frame(x)
+      var_names <- colnames(mf)[-1] # Exclude response variable
+      
+      # Get standardized coefficients
+      standardized_model <- lm(scale(model.frame(x)[,1]) ~ scale(model.frame(x)[,-1]))
+      std_coef <- coef(standardized_model)
+      
+      names(std_coef) <- c("(Intercept)", var_names)
+      
+      # Get p-values
+      p_values <- summary(x)$coefficients[,4]
+      
+      # Create significance stars
+      stars <- ifelse(p_values < 0.001, "***",
+                      ifelse(p_values < 0.01, "**",
+                             ifelse(p_values < 0.05, "*", "")))
+      
+      # Create a unique model name that includes rank information
+      rank_in_order <- which(order == as.numeric(gsub("Model ", "", model_names[i])))
+      model_display_name <- paste0("Rank ", rank_in_order)
+      
+      # Include all explanatory variables
+      all_vars <- data.frame(
+        Model = model_display_name,  # Use rank-based name
+        OriginalModel = model_names[i],  # Keep original model name for reference
+        ModelRank = rank_in_order,  # Store rank for ordering
+        Term = c(var_names, setdiff(explanatory_variables, var_names)),  # Include all explanatory variables
+        Estimate = c(std_coef[-1], rep(NA, length(setdiff(explanatory_variables, var_names)))),  # NA for non-included vars
+        Stars = c(stars[-1], rep("", length(setdiff(explanatory_variables, var_names)))),  # No stars for non-included vars
+        Response = response_var,
+        stringsAsFactors = FALSE
+      )
+      
+      return(all_vars)
+    }))
+
+    combined_table$Response <- factor(combined_table$Response, levels = response_variables)
+
+    return(combined_table)
+  }))
+  
+  # Remove intercept terms
+  all_models_coef <- all_models_coef[all_models_coef$Term != "(Intercept)", ]
+  
+  # Create the combined heatmap
+  p <- ggplot(all_models_coef, aes(x = ModelRank, y = Term, fill = Estimate)) +
+    geom_tile() +
+    geom_text(aes(label = Stars), color = "black", size = 3) +
+    scale_fill_gradient2(low = "#2166AC", mid = "white", high = "#B2182B", midpoint = 0, name = "Coefficient", na.value = "white") +
+    scale_x_continuous(breaks = 1:5, labels = paste0("Rank ", 1:5)) +
+    theme_light() +
+    facet_wrap(~ Response, nrow = 1, scales = "free_x") +
+    theme(
+      axis.text.x = element_text(angle = 45, size = 8),
+      axis.text.y = element_text(size = 8),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      strip.background = element_rect(fill = "#cdcdcd"),
+      strip.text = element_text(color = "black")
+    ) +
+    labs(x = "Model Rank (by CV Error)", y = "Variable",
+         title = "Coefficients Across Top Models for All Response Variables",
+         subtitle = "* p<0.05, ** p<0.01, *** p<0.001")
+  
+  return(p)
+}
+
+# Generate and display the combined heatmap
+cat("This heatmap shows the coefficients of the top 5 models for each response variable, faceted by response variable.\n\n")
+print(combined_heatmap(all_response_model_details, model_orders))
+```
