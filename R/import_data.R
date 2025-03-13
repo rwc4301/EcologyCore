@@ -122,6 +122,30 @@ metadata_frame <- function(physeq) {
   return(ma)
 }
 
+get_taxa_names <- function(taxa_names, physeq, shorten = FALSE) {
+  taxa_table <- as(tax_table(physeq), "matrix")
+  subset <- taxa_table[intersect(taxa_names, rownames(taxa_table)),]
+
+  # Function to collapse row values based on shorten flag
+  collapse_values <- function(row, shorten = FALSE) {
+    if (!shorten) {
+      return(paste(row, collapse = ";"))  # Standard collapsing
+    } else {
+      # Find the last non-empty, non-NA, non-"uncultured" value
+      valid_values <- row[!(is.na(row) | row == "" | row == "uncultured")]
+      return(ifelse(length(valid_values) > 0, tail(valid_values, 1), NA))  # Last valid value
+    }
+  }
+
+  values <- apply(subset, 1, collapse_values, shorten)
+
+  new_vector <- ifelse(taxa_names %in% rownames(subset),
+                       values[taxa_names[taxa_names %in% names(values)]],
+                       taxa_names)  # Keep original row name if not found
+
+  return(new_vector)
+}
+
 expand_otu_names <- function(otu_names, taxa_table, use_short_names = FALSE) {
   if (!use_short_names) {
     return(paste(otu_names, sapply(otu_names, function(x) {

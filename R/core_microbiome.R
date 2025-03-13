@@ -533,29 +533,49 @@ taxa_bars <- function(physeq, group_by = NULL, N = 25, which_level = "Genus") {
   # cat(paste("levels=c(",paste(paste("\"",unique(as.character(df$Sample)),"\"",sep=""),collapse=","),")",sep=""))
   # then use df$Sample<-factor(as.character(df$Sample),levels=c()) list
 
-  return(structure(list(df = df), className = "ECTaxaBars"))
+  meta_table <- as(sample_data(physeq), "data.frame")
+  meta_table$Sample <- rownames(meta_table)
+
+  df <- merge(df, meta_table, by = "Sample")
+
+  return(structure(df, className = "ECTaxaBars"))
 }
 
-plot.ECTaxaBars <- function(value, N = 25, switch_strip = "x", legend_columns = 1) {
+plot.ECTaxaBars <- function(value, N = 25, switch_strip = "x", legend_columns = 1, shorten = TRUE) {
   reveal_sample_names=TRUE
   legend_text_size=20
   axis_title_size=30
   text_size=30
   axis_text_size=30
-  strip_text_size=30
+  strip_text_size=16
   height_image=25
   width_image=60
 
-  p <- ggplot(value$df, aes(Sample, Value, fill = Taxa)) +
+  taxa_ids <- unique(value$Taxa)
+  taxa_names <- get_taxa_names(taxa_ids, physeq, TRUE)
+
+  value$Taxa <- ifelse(value$Taxa %in% taxa_ids, taxa_names[match(value$Taxa, taxa_ids)], value$Taxa)
+
+  factor_levels <- c("Others", sort(unique(value$Taxa[value$Taxa != "Others"])))
+  value$Taxa <- factor(value$Taxa, levels = factor_levels, ordered = TRUE)
+
+  #colour_scale <- c("lightgrey", randomcoloR::distinctColorPalette(length(levels(value$Taxa)) - 1, altCol = TRUE))
+  colour_scale <- c("lightgrey", colorRampPalette(RColorBrewer::brewer.pal(9, "Set1"))(n = length(levels(value$Taxa)) - 1))
+
+  p <- ggplot(value, aes(Sample, Value, fill = Taxa)) +
     geom_bar(stat = "identity") +
     facet_grid(. ~ Groups, drop = TRUE, scale = "free", space = "free_x", switch = switch_strip) +
-    scale_fill_manual(values = colours[1:(N+1)], guide = guide_legend(ncol = legend_columns)) +
+    scale_fill_manual(values = colour_scale) + #, guide = guide_legend(ncol = legend_columns)) +
     ylab("Proportions") +
     scale_y_continuous(expand = c(0.02, 0)) +
+    theme_light() +
     theme(
-      strip.background = element_rect(fill="gray85"),
-      panel.spacing = unit(0.3, "lines"),
-      strip.text = element_text(size=strip_text_size,angle=90),
+      strip.background = element_rect(fill = "#cdcdcd"),
+      strip.text = element_text(color = "black"),
+      legend.position = "bottom"
+      # strip.background = element_rect(fill="gray85"),
+      # panel.spacing = unit(0.3, "lines"),
+      # strip.text = element_text(size=strip_text_size,angle=90),
     )
 
   if(reveal_sample_names) {

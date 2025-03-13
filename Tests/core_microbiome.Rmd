@@ -90,7 +90,12 @@ This plot shows the top 25 most abundant genera in each sample. Samples are grou
 ```{r core_taxa, echo=FALSE}
 data <- taxa_bars(physeq, group_by = "run")
 
-print(plot.ECTaxaBars(data))
+data <- data[order(as.Date(data$date, format = "%d.%m.%Y"), data$BED),]
+data$Sample <- factor(data$Sample, levels = unique(data$Sample))
+
+data$Taxa <- ifelse(grepl("^X[0-9]", data$Taxa), sub("^X", "", data$Taxa), data$Taxa)
+
+print(plot.ECTaxaBars(data, physeq, shorten = TRUE))
 ```
 
 The core microbiome captures the set of microbial taxa consistently found across a given group of samples.
