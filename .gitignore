@@ -1,5 +1,69 @@
-.Rproj.user
+# Node.js / npm
+
+**/node_modules/
+**/package-lock.json
+**/yarn.lock
+**/pnpm-lock.yaml
+
+# R
 .Rhistory
 .RData
 .Ruserdata
-frontend/node_modules
+.Rproj.user/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.pyo
+.Python
+env/
+venv/
+.env
+*.ipynb_checkpoints/
+
+# Virtual Environment
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# macOS
+**/.DS_Store
+
+# Logs and temp files
+*.log
+*.out
+*.tmp
+*.swp
+*.swo
+*.bak
+
+# Coverage reports
+coverage/
+*.cover
+.coverage
+nosetests.xml
+pytest_cache/
+
+# Compiled files
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
+
+# Data files
+*.csv
+*.tsv
+*.json
+*.db
+*.sqlite
+*.hdf5
+*.h5
+
