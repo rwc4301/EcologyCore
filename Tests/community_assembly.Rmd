@@ -27,7 +27,7 @@ devtools::load_all("..")
 
 ```{r params, include=FALSE}
 #### Parameters ####
-rds_path <- "/Users/reuben/Library/CloudStorage/OneDrive-SharedLibraries-CranfieldUniversity/Sophie Bretagne - Shared/data/experiment_genus.rds"
+rds_path <- "/home/sequencinglab/Documents/experiment_genus.rds"
 
 grouping_column <- "Groups"
 number_of_randomizations <- 1000

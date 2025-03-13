@@ -80,14 +80,16 @@ nst <- function(
   return(structure(list(df = df), className="ECStochasticityRatio"))
 }
 
-plot.ECStochasticityRatio <- function(value) {
+plot.ECStochasticityRatio <- function(value, measures = c("NST", "ST", "MST")) {
   # NST_width=4
   # NST_height=8
+  
+  value <- value[value$measure %in% measures,]
 
-  p <- ggplot(value$df, aes(x = Groups, y = value, fill = Groups)) +
+  p <- ggplot(value, aes(x = Groups, y = value, fill = Groups)) +
     geom_bar(stat = "identity") +
     geom_text(aes(label = sprintf("%0.2f", round(value, digits = 2))), vjust = -0.3, size = 3.5) +
-    facet_wrap(~ measure, strip.position = "left", ncol = 1, scales = "free_y") +
+    facet_wrap(~ measure, scales = "free_y") +
     ylim(0, 1.1) +
     ylab("Stochasticity Ratios (scaled to 1)") +
     theme(panel.spacing = unit(2, "lines"))
