@@ -68,20 +68,17 @@ stopifnot({
 ```
 
 ```{r hypothesis, include=FALSE}
-#### Hypothesis ####
-label="xRun"
-meta_table$Groups<-as.factor(as.character(meta_table$run))
-meta_table$Type<-as.factor(as.character(meta_table$sweetening.flow))
-meta_table$Type2<-NULL
-meta_table$Connections<-NULL
+meta_table$Groups <- as.factor("All")
 
-environmental_covariates<-c(
+explanatory_variables <- c(
   "pH",
+  "Headloss",
+  "temperature..C.",
   "Neat.coliform.2000",
   "neat.e.coli.2000",
   "Cl.perfrigens.conf",
   "Enterococci.confirmed.100ml",
-  "22C.Plate.Count.Neat",
+  "X22C.Plate.Count.Neat",
   "Conductivity.20C",
   "Turbidity.FTU",
   "Ammoniacal.Nitrogen",
@@ -90,7 +87,6 @@ environmental_covariates<-c(
   "Nitrite.as.N",
   "Alkalinity.as.CaCO3",
   "Sulphate.as.SO4",
-  "Nitrite.as.NO2",
   "Carbon.Total.Organic"
 )
 ```
@@ -120,7 +116,7 @@ The model used two constraints: a) all 𝛽-coefficients summed up to zero, that
 ```{r analyse, include=FALSE}
 new_physeq <- join_phyloseq(abund_table, taxa_table, meta_table, taxa_tree)
 
-result <- coda_glmnet(new_physeq)
+result <- coda_glmnet(new_physeq, explanatory_variables, normalisation_method = "TSS+CLR")
 ```
 
 ```{r plot, echo=FALSE}
